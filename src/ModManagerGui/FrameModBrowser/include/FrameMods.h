@@ -10,6 +10,7 @@
 #include "GuiModManager.h"
 
 #include <borealis.hpp>
+#include "OqbUi.h"
 
 #include <map>
 #include <string>
@@ -45,21 +46,23 @@ private:
   int _selected_{0};
   int _first_{0};
   bool _checked_{false};
+  int _zone_{0};  // 0 lista, 1 buscador
 
   void scanMods();
   void rebuild();
   void move(int delta_);
   void toggleSelected();
   void openMore();
+  void openSearch();
   double fractionOf(const std::string& modName_) const;
   std::string statusOf(const std::string& modName_) const;
 };
 
 
-class FrameMods : public brls::AppletFrame {
+class FrameMods : public FrameSinBarras {
 
 public:
-  FrameMods(GuiModManager* manager_, const std::string& title_);
+  FrameMods(GuiModManager* manager_, const std::string& title_, const uint8_t* icon_ = nullptr);
   ~FrameMods() override;
 
 private:

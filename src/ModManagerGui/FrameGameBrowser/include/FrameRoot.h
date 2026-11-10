@@ -10,9 +10,10 @@
 #include "GuiModManager.h"
 
 #include "borealis.hpp"
+#include "OqbUi.h"
 
 
-class FrameRoot : public brls::AppletFrame {
+class FrameRoot : public FrameSinBarras {
 
 public:
   FrameRoot();

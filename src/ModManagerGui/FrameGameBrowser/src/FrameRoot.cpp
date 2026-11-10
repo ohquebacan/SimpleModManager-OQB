@@ -18,7 +18,7 @@ LoggerInit([]{
 });
 
 
-FrameRoot::FrameRoot() : brls::AppletFrame(false, false) {
+FrameRoot::FrameRoot() : FrameSinBarras() {
   LogWarning << "Build root frame..." << std::endl;
 
   this->setTitle("Mis mods");

@@ -60,6 +60,8 @@ private:
   std::string _filter_{};
   int _selected_{0};
   int _first_{0};
+  int _zone_{0};       // 0 lista, 1 barra de arriba (buscador y chips de orden)
+  int _headerSel_{0};  // 0 buscador, 1..3 Recientes / A-Z / Mas mods
   std::map<int, int> _images_;     // indice del juego -> imagen de NanoVG
 
   void rebuildList();
@@ -67,6 +69,8 @@ private:
   void openSelected();
   void readActiveCounts();
   void updateHints();
+  void openSearch();
+  void setSort(int which_);
 
 };
 

@@ -6,6 +6,7 @@
 #include "TabGames.h"
 #include "FrameModBrowser.h"
 #include "FrameMods.h"
+#include "OqbUi.h"
 #include "FrameRoot.h"
 
 #include "GenericToolbox.Switch.h"
@@ -208,30 +209,45 @@ TabGames::TabGames(FrameRoot* owner_) : _owner_(owner_) {
   }
   this->readActiveCounts();
 
-  this->registerAction("", brls::Key::DUP, [this]{ this->move(-1); return true; }, true);
-  this->registerAction("", brls::Key::DDOWN, [this]{ this->move(1); return true; }, true);
-  this->registerAction("", brls::Key::L, [this]{ this->move(-8); return true; }, true);
-  this->registerAction("Ajustes", brls::Key::R, [this]{ _owner_->openSettings(); return true; });
-  this->registerAction("Ver mods", brls::Key::A, [this]{ this->openSelected(); return true; });
-  this->registerAction("Buscar", brls::Key::Y, [this]{
-    brls::Swkbd::openForText([this](std::string text){
-      _filter_ = text;
-      this->rebuildList();
-    }, "Buscar juego", "", 40, _filter_);
+  /* Navegacion: la lista y, arriba, la barra con el buscador y los chips de
+     orden. Desde el primer juego, arriba sube a la barra; abajo vuelve. */
+  this->registerAction("", brls::Key::DUP, [this]{
+    if( _zone_ == 0 and (_selected_ == 0 or _visible_.empty()) ){ _zone_ = 1; return true; }
+    if( _zone_ == 0 ) this->move(-1);
     return true;
-  });
-  this->registerAction("Ordenar", brls::Key::X, [this]{
-    auto& sort = this->getConfig().sortGameList;
-    switch( sort.value ){
-      case ConfigHolder::SortGameList::Recent: sort = ConfigHolder::SortGameList::Alphabetical; break;
-      case ConfigHolder::SortGameList::Alphabetical: sort = ConfigHolder::SortGameList::NbMods; break;
-      default: sort = ConfigHolder::SortGameList::Recent; break;
+  }, true);
+  this->registerAction("", brls::Key::DDOWN, [this]{
+    if( _zone_ == 1 ){ if( not _visible_.empty() ) _zone_ = 0; return true; }
+    this->move(1);
+    return true;
+  }, true);
+  this->registerAction("", brls::Key::DLEFT, [this]{
+    if( _zone_ == 1 and _headerSel_ > 0 ) _headerSel_--;
+    return true;
+  }, true);
+  this->registerAction("", brls::Key::DRIGHT, [this]{
+    if( _zone_ == 1 and _headerSel_ < 3 ) _headerSel_++;
+    return true;
+  }, true);
+  this->registerAction("", brls::Key::L, [this]{ if( _zone_ == 0 ) this->move(-8); return true; }, true);
+  this->registerAction("", brls::Key::R, [this]{ _owner_->openSettings(); return true; }, true);
+  this->registerAction("", brls::Key::A, [this]{
+    if( _zone_ == 1 ){
+      if( _headerSel_ == 0 ) this->openSearch();
+      else this->setSort(_headerSel_ - 1);
+      return true;
     }
-    this->getGameBrowser().getConfigHandler().dumpConfigToFile();
-    this->rebuildList();
+    this->openSelected();
     return true;
-  });
-  this->registerAction("Quitar búsqueda", brls::Key::MINUS, [this]{
+  }, true);
+  this->registerAction("", brls::Key::Y, [this]{ this->openSearch(); return true; }, true);
+  this->registerAction("", brls::Key::X, [this]{
+    const auto v = this->getConfig().sortGameList.value;
+    const int cur = v == ConfigHolder::SortGameList::Alphabetical ? 1 : v == ConfigHolder::SortGameList::NbMods ? 2 : 0;
+    this->setSort((cur + 1) % 3);
+    return true;
+  }, true);
+  this->registerAction("", brls::Key::MINUS, [this]{
     if( _filter_.empty() ) return true;
     _filter_.clear();
     this->rebuildList();
@@ -313,8 +329,20 @@ void TabGames::rebuildList(){
   this->updateHints();
 }
 
-void TabGames::updateHints(){
-  this->updateActionHint(brls::Key::MINUS, _filter_.empty() ? "" : "Quitar búsqueda");
+void TabGames::updateHints(){}
+
+void TabGames::openSearch(){
+  brls::Swkbd::openForText([this](std::string text){
+    _filter_ = text;
+    this->rebuildList();
+  }, "Buscar juego", "", 40, _filter_);
+}
+
+void TabGames::setSort(int which_){
+  auto& sort = this->getConfig().sortGameList;
+  sort = which_ == 1 ? ConfigHolder::SortGameList::Alphabetical : which_ == 2 ? ConfigHolder::SortGameList::NbMods : ConfigHolder::SortGameList::Recent;
+  this->getGameBrowser().getConfigHandler().dumpConfigToFile();
+  this->rebuildList();
 }
 
 void TabGames::move(int delta_){
@@ -327,7 +355,7 @@ void TabGames::openSelected(){
   const GameItem& g = _gameList_[_visible_[_selected_]];
   LogWarning << "Opening \"" << g.title << "\"" << std::endl;
   getGameBrowser().selectGame( g.title );
-  auto* mods = new FrameMods( &_owner_->getGuiModManager(), g.realName );
+  auto* mods = new FrameMods( &_owner_->getGuiModManager(), g.realName, g.icon );
   mods->registerAction("", brls::Key::PLUS, []{return true;}, true);
   brls::Application::pushView(mods, brls::ViewAnimation::SLIDE_LEFT);
 }
@@ -364,50 +392,54 @@ void TabGames::draw(NVGcontext* vg, int x, int y, unsigned width, unsigned heigh
     return;
   }
 
-  // Buscador y orden.
+  // Barra de arriba: titulo, buscador y chips de orden (se eligen con la cruceta).
   {
+    nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
+    nvgFontSize(vg, 30.f);
+    nvgFillColor(vg, text);
+    nvgBeginPath(vg);
+    nvgText(vg, left, top + 20.f, "Mis mods", nullptr);
+    const float titleW = nvgTextBounds(vg, 0, 0, "Mis mods", nullptr, nullptr) + 24.f;
+
     const float h = 40.f;
     const char* labels[] = {"Recientes", "A-Z", "Más mods"};
     const auto sortValue = this->getConfig().sortGameList.value;
     const int current = sortValue == ConfigHolder::SortGameList::Alphabetical ? 1 : sortValue == ConfigHolder::SortGameList::NbMods ? 2 : 0;
     nvgFontSize(vg, 16.f);
     float chipsW = 0.f;
-    for( auto* l : labels ) chipsW += nvgTextBounds(vg, 0, 0, l, nullptr, nullptr) + 30.f + 8.f;
-    const float boxW = width - pad * 2 - chipsW - 12.f;
+    for( auto* l : labels ) chipsW += nvgTextBounds(vg, 0, 0, l, nullptr, nullptr) + 32.f + 8.f;
+    const float boxX = left + titleW, boxW = width - pad * 2 - titleW - chipsW - 8.f;
+    const bool headerFocus = this->isFocused() and _zone_ == 1;
 
     nvgBeginPath(vg);
-    nvgRoundedRect(vg, left, top, boxW, h, 10.f);
+    nvgRoundedRect(vg, boxX, top, boxW, h, 10.f);
     nvgFillColor(vg, veil);
     nvgFill(vg);
+    if( headerFocus and _headerSel_ == 0 ){
+      nvgBeginPath(vg);
+      nvgRoundedRect(vg, boxX - 3, top - 3, boxW + 6, h + 6, 13.f);
+      nvgStrokeColor(vg, accent);
+      nvgStrokeWidth(vg, 3.f);
+      nvgStroke(vg);
+    }
     nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
     nvgFontSize(vg, 17.f);
     nvgFillColor(vg, _filter_.empty() ? faint : text);
     nvgBeginPath(vg);
-    const std::string search = _filter_.empty() ? "Buscar juego (Y)" : "Buscando: " + _filter_ + "   ·   " + std::to_string(_visible_.size()) + " de " + std::to_string(_gameList_.size());
-    nvgText(vg, left + 16.f, top + h / 2 + 1, fit(vg, search, boxW - 32.f).c_str(), nullptr);
+    const std::string search = _filter_.empty() ? "Buscar juego" : "Buscando: " + _filter_ + "   ·   " + std::to_string(_visible_.size()) + " de " + std::to_string(_gameList_.size());
+    nvgText(vg, boxX + 16.f, top + h / 2 + 1, fit(vg, search, boxW - 32.f).c_str(), nullptr);
 
-    float cx = left + boxW + 12.f;
+    float cx = boxX + boxW + 8.f;
     for( int i = 0; i < 3; i++ ){
-      nvgFontSize(vg, 16.f);
-      const float w = nvgTextBounds(vg, 0, 0, labels[i], nullptr, nullptr) + 30.f;
-      nvgBeginPath(vg);
-      nvgRoundedRect(vg, cx, top + 3, w, h - 6, (h - 6) / 2);
-      if( i == current ){
-        nvgFillColor(vg, nvgRGBAf(accent.r, accent.g, accent.b, 0.22f * this->alpha));
-        nvgFill(vg);
-      }
-      else{
-        nvgStrokeColor(vg, faint);
-        nvgStrokeWidth(vg, 1.f);
-        nvgStroke(vg);
-      }
-      nvgFillColor(vg, i == current ? accent : faint);
-      nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-      nvgBeginPath(vg);
-      nvgText(vg, cx + w / 2, top + h / 2 + 1, labels[i], nullptr);
-      cx += w + 8.f;
+      cx += oqbui::chip(vg, cx + 8.f, top, h, labels[i], i == current, headerFocus and _headerSel_ == i + 1, accent, text, faint, this->alpha) + 8.f;
     }
   }
+
+  // Barra de atajos abajo.
+  const float hintH = _zone_ == 1
+      ? oqbui::hintBar(vg, x, y + height, width, {{"B", "Salir"}, {"A", "Elegir"}}, text, this->alpha)
+      : oqbui::hintBar(vg, x, y + height, width, {{"B", "Salir"}, {"−", _filter_.empty() ? "" : "Quitar búsqueda"}, {"R", "Ajustes"}, {"X", "Ordenar"}, {"Y", "Buscar"}, {"A", "Ver mods"}}, text, this->alpha);
+  height -= unsigned(hintH);
 
   const float listTop = top + 58.f;
   const float rowH = 76.f;
@@ -431,7 +463,7 @@ void TabGames::draw(NVGcontext* vg, int x, int y, unsigned width, unsigned heigh
     GameItem& g = _gameList_[gi];
     const float ry = listTop + k * rowH;
 
-    if( vi == _selected_ ){
+    if( vi == _selected_ and _zone_ == 0 ){
       nvgBeginPath(vg);
       nvgRoundedRect(vg, left, ry + 2, listW, rowH - 4, 12.f);
       nvgFillColor(vg, nvgRGBAf(accent.r, accent.g, accent.b, 0.13f * this->alpha));

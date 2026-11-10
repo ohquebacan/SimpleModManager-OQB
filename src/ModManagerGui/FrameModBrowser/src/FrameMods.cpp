@@ -65,20 +65,26 @@ ModsView::ModsView(GuiModManager* manager_, uint8_t* icon_, std::string title_)
   this->scanMods();
   this->rebuild();
 
-  this->registerAction("", brls::Key::DUP, [this]{ this->move(-1); return true; }, true);
-  this->registerAction("", brls::Key::DDOWN, [this]{ this->move(1); return true; }, true);
-  this->registerAction("", brls::Key::L, [this]{ this->move(-6); return true; }, true);
-  this->registerAction("", brls::Key::R, [this]{ this->move(6); return true; }, true);
-  this->registerAction("Activar / apagar", brls::Key::A, [this]{ this->toggleSelected(); return true; });
-  this->registerAction("Grupos y opciones", brls::Key::X, [this]{ this->openMore(); return true; });
-  this->registerAction("Buscar mod", brls::Key::Y, [this]{
-    brls::Swkbd::openForText([this](std::string text){
-      _filter_ = text;
-      this->rebuild();
-    }, "Buscar mod", "", 40, _filter_);
+  this->registerAction("", brls::Key::DUP, [this]{
+    if( _zone_ == 0 and _selected_ == 0 ){ _zone_ = 1; return true; }
+    if( _zone_ == 0 ) this->move(-1);
     return true;
-  });
-  this->registerAction("Quitar búsqueda", brls::Key::MINUS, [this]{
+  }, true);
+  this->registerAction("", brls::Key::DDOWN, [this]{
+    if( _zone_ == 1 ){ if( not _visible_.empty() ) _zone_ = 0; return true; }
+    this->move(1);
+    return true;
+  }, true);
+  this->registerAction("", brls::Key::L, [this]{ if( _zone_ == 0 ) this->move(-6); return true; }, true);
+  this->registerAction("", brls::Key::R, [this]{ if( _zone_ == 0 ) this->move(6); return true; }, true);
+  this->registerAction("", brls::Key::A, [this]{
+    if( _zone_ == 1 ) this->openSearch();
+    else this->toggleSelected();
+    return true;
+  }, true);
+  this->registerAction("", brls::Key::X, [this]{ this->openMore(); return true; }, true);
+  this->registerAction("", brls::Key::Y, [this]{ this->openSearch(); return true; }, true);
+  this->registerAction("", brls::Key::MINUS, [this]{
     if( _filter_.empty() ) return true;
     _filter_.clear();
     this->rebuild();
@@ -118,6 +124,13 @@ void ModsView::scanMods(){
   for( auto& p : pairs ) for( int b : p.second ) _rows_[p.first].clashes.push_back(_rows_[b].name);
 }
 
+void ModsView::openSearch(){
+  brls::Swkbd::openForText([this](std::string text){
+    _filter_ = text;
+    this->rebuild();
+  }, "Buscar mod", "", 40, _filter_);
+}
+
 void ModsView::rebuild(){
   _visible_.clear();
   const std::string f = lowerAscii(_filter_);
@@ -126,7 +139,6 @@ void ModsView::rebuild(){
   }
   _selected_ = 0;
   _first_ = 0;
-  this->updateActionHint(brls::Key::MINUS, _filter_.empty() ? "" : "Quitar búsqueda");
 }
 
 void ModsView::move(int delta_){
@@ -206,25 +218,60 @@ void ModsView::draw(NVGcontext* vg, int x, int y, unsigned width, unsigned heigh
     if( not any and not _rows_.empty() ){ _manager_->startCheckAllModsThread(); }
   }
 
-  // Resumen arriba: activos de cuantos, perfil y busqueda.
+  // Barra de abajo.
   {
+    const float hintH = _zone_ == 1
+        ? oqbui::hintBar(vg, x, y + height, width, {{"B", "Volver"}, {"A", "Buscar"}}, text, this->alpha)
+        : oqbui::hintBar(vg, x, y + height, width, {{"B", "Volver"}, {"−", _filter_.empty() ? "" : "Quitar búsqueda"}, {"X", "Grupos y opciones"}, {"Y", "Buscar"}, {"A", "Activar / apagar"}}, text, this->alpha);
+    height -= unsigned(hintH);
+  }
+
+  // Arriba: icono y nombre del juego, y debajo activos, perfil y buscador.
+  {
+    if( _image_ == 0 and _icon_ != nullptr ) _image_ = nvgCreateImageMem(vg, 0, _icon_, 0x20000);
+    float tx = left;
+    if( _image_ > 0 ){
+      nvgBeginPath(vg);
+      nvgRoundedRect(vg, left, top, 44.f, 44.f, 9.f);
+      nvgFillPaint(vg, nvgImagePattern(vg, left, top, 44.f, 44.f, 0, _image_, this->alpha));
+      nvgFill(vg);
+      tx += 58.f;
+    }
+    nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
+    nvgFontSize(vg, 30.f);
+    nvgFillColor(vg, text);
+    nvgBeginPath(vg);
+    nvgText(vg, tx, top + 22.f, fit(vg, _title_, left + w - tx).c_str(), nullptr);
+    top += 60.f;
+
     int active = 0;
     for( auto& r : _rows_ ){ if( this->fractionOf(r.name) == 1 ) active++; }
     const std::string summary = std::to_string(active) + " de " + std::to_string(_rows_.size()) + (active == 1 ? " activo" : " activos");
-    pill(vg, left, top + 18.f, summary, active > 0 ? kGreenBg : nvgRGBAf(veil.r, veil.g, veil.b, veil.a), active > 0 ? kGreen : faint, this->alpha, 16.f);
+    pill(vg, left, top + 20.f, summary, active > 0 ? kGreenBg : nvgRGBAf(veil.r, veil.g, veil.b, veil.a), active > 0 ? kGreen : faint, this->alpha, 16.f);
     float cx = left + pillWidth(vg, summary, 16.f) + 12.f;
-
     const std::string profile = "Perfil: " + mm.fetchCurrentPreset().name;
-    pill(vg, cx, top + 18.f, profile, nvgRGBAf(accent.r, accent.g, accent.b, 0.18f), accent, this->alpha, 16.f);
+    pill(vg, cx, top + 20.f, profile, nvgRGBAf(accent.r, accent.g, accent.b, 0.18f), accent, this->alpha, 16.f);
     cx += pillWidth(vg, profile, 16.f) + 18.f;
 
+    const float bh = 40.f, bw = left + w - cx;
+    nvgBeginPath(vg);
+    nvgRoundedRect(vg, cx, top, bw, bh, 10.f);
+    nvgFillColor(vg, veil);
+    nvgFill(vg);
+    if( this->isFocused() and _zone_ == 1 ){
+      nvgBeginPath(vg);
+      nvgRoundedRect(vg, cx - 3, top - 3, bw + 6, bh + 6, 13.f);
+      nvgStrokeColor(vg, accent);
+      nvgStrokeWidth(vg, 3.f);
+      nvgStroke(vg);
+    }
     nvgFontSize(vg, 16.f);
-    nvgTextAlign(vg, NVG_ALIGN_RIGHT | NVG_ALIGN_MIDDLE);
+    nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
     nvgFillColor(vg, _filter_.empty() ? faint : text);
     nvgBeginPath(vg);
-    const std::string search = _filter_.empty() ? "Buscar mod (Y)" : "Buscando: " + _filter_ + "  ·  " + std::to_string(_visible_.size()) + " de " + std::to_string(_rows_.size());
-    nvgText(vg, left + w, top + 19.f, fit(vg, search, left + w - cx).c_str(), nullptr);
-    top += 52.f;
+    const std::string search = _filter_.empty() ? "Buscar mod" : "Buscando: " + _filter_ + "  ·  " + std::to_string(_visible_.size()) + " de " + std::to_string(_rows_.size());
+    nvgText(vg, cx + 14.f, top + bh / 2 + 1, fit(vg, search, bw - 28.f).c_str(), nullptr);
+    top += 56.f;
   }
 
   if( _rows_.empty() ){
@@ -263,7 +310,7 @@ void ModsView::draw(NVGcontext* vg, int x, int y, unsigned width, unsigned heigh
     const std::string status = this->statusOf(r.name);
 
     // Separador y seleccion.
-    if( vi == _selected_ ){
+    if( vi == _selected_ and _zone_ == 0 ){
       nvgBeginPath(vg);
       nvgRoundedRect(vg, left - 12.f, ry + 2, w + 24.f, rowH - 4, 12.f);
       nvgFillColor(vg, nvgRGBAf(accent.r, accent.g, accent.b, 0.13f * this->alpha));
@@ -342,13 +389,16 @@ void ModsView::draw(NVGcontext* vg, int x, int y, unsigned width, unsigned heigh
 }
 
 
-FrameMods::FrameMods(GuiModManager* manager_, const std::string& title_) : brls::AppletFrame(false, false) {
-  this->setTitle( title_ );
-  this->setFooterText( "SimpleModManager" );
-  const std::string tid = GenericToolbox::Switch::Utils::lookForTidInSubFolders( manager_->getGameBrowser().getModManager().getGameFolderPath(), 5 );
-  _icon_ = GenericToolbox::Switch::Utils::getIconFromTitleId( tid );
-  if( _icon_ != nullptr ){ this->setIcon(_icon_, 0x20000); }
-  else{ this->setIcon("romfs:/images/icon_corner.png"); }
+FrameMods::FrameMods(GuiModManager* manager_, const std::string& title_, const uint8_t* icon_) : FrameSinBarras() {
+  // El icono viene de la lista de juegos (su cache); si no, se busca como antes.
+  if( icon_ != nullptr ){
+    _icon_ = new uint8_t[0x20000];
+    std::memcpy(_icon_, icon_, 0x20000);
+  }
+  else{
+    const std::string tid = GenericToolbox::Switch::Utils::lookForTidInSubFolders( manager_->getGameBrowser().getModManager().getGameFolderPath(), 5 );
+    _icon_ = GenericToolbox::Switch::Utils::getIconFromTitleId( tid );
+  }
   this->setContentView( new ModsView(manager_, _icon_, title_) );
 }
 

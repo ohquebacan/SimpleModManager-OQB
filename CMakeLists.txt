@@ -64,7 +64,7 @@ include_directories("${FREETYPE_INCLUDE_DIRS}")
 #include_directories("${SDL2_INCLUDE_DIRS}")
 
 set(VERSION_MAJOR 3)
-set(VERSION_MINOR 3)
+set(VERSION_MINOR 4)
 set(VERSION_MICRO 0)
 set(VERSION_TAG "\"\"")
 set(APP_VERSION
