@@ -18,6 +18,8 @@
 #include <algorithm>
 #include <cstring>
 #include <memory>
+#include <map>
+#include <fstream>
 #include <sstream>
 
 LoggerInit([]{
@@ -132,6 +134,23 @@ TabGames::TabGames(FrameRoot* owner_) : _owner_(owner_) {
   auto gameList = this->getGameBrowser().getSelector().getEntryList();
   LogInfo << "Adding " << gameList.size() << " game folders..." << std::endl;
 
+  /* Cache (OQB): por carpeta, su TID y el nombre del juego; los iconos aparte.
+     Buscar el TID recorriendo las carpetas y pedir el control de cada juego
+     era lo lento; con la cache solo se hace con las carpetas nuevas. */
+  const std::string cacheDir = "/config/SimpleModManager/oqb_cache/";
+  const std::string cachePath = cacheDir + "juegos.txt";
+  GenericToolbox::mkdir(cacheDir);
+  std::map<std::string, std::pair<std::string, std::string>> cache;  // carpeta -> (tid, nombre)
+  if( GenericToolbox::isFile(cachePath) ){
+    for( auto& line : GenericToolbox::dumpFileAsVectorString(cachePath) ){
+      const auto a = line.find('\t'), b = line.find('\t', a + 1);
+      if( a == std::string::npos or b == std::string::npos ) continue;
+      cache[line.substr(0, a)] = {line.substr(a + 1, b - a - 1), line.substr(b + 1)};
+    }
+  }
+  std::stringstream nuevo;
+  bool cambio = false;
+
   _gameList_.reserve( gameList.size() );
   for( auto& gameEntry : gameList ){
     LogScopeIndent;
@@ -141,14 +160,35 @@ TabGames::TabGames(FrameRoot* owner_) : _owner_(owner_) {
     g.title = gameEntry.title;
     const std::string gamePath{GenericToolbox::joinPath(this->getConfig().baseFolder, gameEntry.title)};
     g.nMods = int( GenericToolbox::lsDirs(gamePath).size() );
-    g.titleId = GenericToolbox::Switch::Utils::lookForTidInSubFolders(gamePath);
 
-    /* El nombre real del juego, no el de la carpeta: las carpetas que creo
-       SimpleModDownloader con un juego nuevo pueden tener "?" o simbolos raros
-       (nombres comprimidos de la NACP), y asi no habia forma de encontrarlo. */
-    infoFromTid(g.titleId, g.realName, g.icon);
+    auto hit = cache.find(g.title);
+    const std::string iconPath = hit != cache.end() ? cacheDir + hit->second.first + ".jpg" : "";
+    if( hit != cache.end() and not hit->second.first.empty() and GenericToolbox::isFile(iconPath) ){
+      g.titleId = hit->second.first;
+      g.realName = hit->second.second;
+      std::ifstream f(iconPath, std::ios::binary);
+      std::vector<char> data((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+      g.icon = new uint8_t[0x20000]();
+      std::memcpy(g.icon, data.data(), std::min<size_t>(data.size(), 0x20000));
+    }
+    else{
+      g.titleId = GenericToolbox::Switch::Utils::lookForTidInSubFolders(gamePath);
+      /* El nombre real del juego, no el de la carpeta: las carpetas que creo
+         SimpleModDownloader con un juego nuevo pueden tener "?" o simbolos raros
+         (nombres comprimidos de la NACP), y asi no habia forma de encontrarlo. */
+      infoFromTid(g.titleId, g.realName, g.icon);
+      if( g.icon != nullptr and not g.titleId.empty() ){
+        std::ofstream f(cacheDir + g.titleId + ".jpg", std::ios::binary | std::ios::trunc);
+        f.write(reinterpret_cast<const char*>(g.icon), 0x20000);
+      }
+      cambio = true;
+    }
     if( g.realName.empty() ){ g.realName = g.title; }
+    if( not g.titleId.empty() and g.icon != nullptr ){ nuevo << g.title << '\t' << g.titleId << '\t' << g.realName << '\n'; }
     _gameList_.emplace_back(std::move(g));
+  }
+  if( cambio or cache.size() != _gameList_.size() ){
+    GenericToolbox::dumpStringInFile(cachePath, nuevo.str());
   }
 
   // Cuando se jugo cada juego por ultima vez (para ordenar por recientes).
