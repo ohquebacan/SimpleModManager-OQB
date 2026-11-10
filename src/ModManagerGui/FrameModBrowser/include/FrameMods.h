@@ -46,6 +46,10 @@ private:
   int _selected_{0};
   int _first_{0};
   bool _checked_{false};
+  // Copia del estado de cada mod: se lee de ModManager solo cuando la tarea de
+  // activar/apagar termino (leerlo mientras esa tarea escribe botaba la app).
+  std::map<std::string, std::pair<double, std::string>> _status_;
+  void refreshStatus();
   int _zone_{0};  // 0 lista, 1 buscador
 
   void scanMods();

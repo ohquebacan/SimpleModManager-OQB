@@ -63,6 +63,7 @@ namespace {
 ModsView::ModsView(GuiModManager* manager_, uint8_t* icon_, std::string title_)
     : _manager_(manager_), _icon_(icon_), _title_(std::move(title_)) {
   this->scanMods();
+  this->refreshStatus();
   this->rebuild();
 
   this->registerAction("", brls::Key::DUP, [this]{
@@ -146,18 +147,21 @@ void ModsView::move(int delta_){
   _selected_ = std::clamp(_selected_ + delta_, 0, int(_visible_.size()) - 1);
 }
 
-double ModsView::fractionOf(const std::string& modName_) const{
+void ModsView::refreshStatus(){
   auto& mm = _manager_->getGameBrowser().getModManager();
   const auto preset = mm.fetchCurrentPreset().name;
-  for( auto& m : mm.getModList() ){ if( m.modName == modName_ ) return m.getStatusFraction(preset); }
-  return 0;
+  _status_.clear();
+  for( auto& m : mm.getModList() ){ _status_[m.modName] = {m.getStatusFraction(preset), m.getStatus(preset)}; }
+}
+
+double ModsView::fractionOf(const std::string& modName_) const{
+  auto it = _status_.find(modName_);
+  return it == _status_.end() ? 0 : it->second.first;
 }
 
 std::string ModsView::statusOf(const std::string& modName_) const{
-  auto& mm = _manager_->getGameBrowser().getModManager();
-  const auto preset = mm.fetchCurrentPreset().name;
-  for( auto& m : mm.getModList() ){ if( m.modName == modName_ ) return m.getStatus(preset); }
-  return "";
+  auto it = _status_.find(modName_);
+  return it == _status_.end() ? "" : it->second.second;
 }
 
 void ModsView::toggleSelected(){
@@ -208,6 +212,12 @@ void ModsView::draw(NVGcontext* vg, int x, int y, unsigned width, unsigned heigh
   float top = y + 22.f;
 
   auto& mm = _manager_->getGameBrowser().getModManager();
+
+  // Al terminar una tarea (activar, apagar, revisar), se toma el estado nuevo.
+  if( _manager_->isTriggerUpdateModsDisplayedStatus() ){
+    _manager_->setTriggerUpdateModsDisplayedStatus(false);
+    this->refreshStatus();
+  }
 
   /* La primera vez que se abre un juego no hay estado guardado de sus mods:
      se revisan una vez (con su ventana de progreso), como hacia la app antes. */
