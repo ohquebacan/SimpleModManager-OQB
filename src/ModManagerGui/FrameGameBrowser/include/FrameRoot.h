@@ -1,5 +1,7 @@
 //
 // Created by Adrien BLANCHET on 22/06/2020.
+// OQB: sin barra lateral. La pantalla principal es la de juegos a todo el
+// ancho; Ajustes y Acerca de se abren con R en su propio marco.
 //
 
 #ifndef SIMPLEMODMANAGER_FRAMEROOT_H
@@ -10,7 +12,7 @@
 #include "borealis.hpp"
 
 
-class FrameRoot : public brls::TabFrame {
+class FrameRoot : public brls::AppletFrame {
 
 public:
   FrameRoot();
@@ -19,6 +21,8 @@ public:
 
   const GuiModManager &getGuiModManager() const { return _guiModManager_; }
   GuiModManager &getGuiModManager(){ return _guiModManager_; }
+
+  void openSettings();
 
 private:
   GuiModManager _guiModManager_{};

@@ -39,7 +39,7 @@ TabAbout::TabAbout() {
   leftBox->addView(new brls::Header("Versión " + Toolbox::getAppVersion() + " - Novedades"));
   auto *changelog = new brls::Label(
     brls::LabelStyle::DESCRIPTION,
-    " - Pantalla de juegos nueva: buscador, orden y mods activos\n - Nombres reales de los juegos nuevos\n - Aviso cuando dos mods tocan los mismos archivos\n - Todo en español\n",
+    " - Sin barra lateral: juegos a pantalla completa (R abre Ajustes)\n - Pantalla de mods nueva con interruptores\n - Pantalla de juegos nueva: buscador, orden y mods activos\n - Nombres reales de los juegos nuevos\n - Aviso cuando dos mods tocan los mismos archivos\n - Todo en español\n",
     true
   );
   changelog->setHorizontalAlign(NVG_ALIGN_LEFT);

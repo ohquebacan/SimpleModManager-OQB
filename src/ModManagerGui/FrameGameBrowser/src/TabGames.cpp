@@ -5,6 +5,7 @@
 
 #include "TabGames.h"
 #include "FrameModBrowser.h"
+#include "FrameMods.h"
 #include "FrameRoot.h"
 
 #include "GenericToolbox.Switch.h"
@@ -170,7 +171,7 @@ TabGames::TabGames(FrameRoot* owner_) : _owner_(owner_) {
   this->registerAction("", brls::Key::DUP, [this]{ this->move(-1); return true; }, true);
   this->registerAction("", brls::Key::DDOWN, [this]{ this->move(1); return true; }, true);
   this->registerAction("", brls::Key::L, [this]{ this->move(-8); return true; }, true);
-  this->registerAction("", brls::Key::R, [this]{ this->move(8); return true; }, true);
+  this->registerAction("Ajustes", brls::Key::R, [this]{ _owner_->openSettings(); return true; });
   this->registerAction("Ver mods", brls::Key::A, [this]{ this->openSelected(); return true; });
   this->registerAction("Buscar", brls::Key::Y, [this]{
     brls::Swkbd::openForText([this](std::string text){
@@ -286,11 +287,9 @@ void TabGames::openSelected(){
   const GameItem& g = _gameList_[_visible_[_selected_]];
   LogWarning << "Opening \"" << g.title << "\"" << std::endl;
   getGameBrowser().selectGame( g.title );
-  auto* modsBrowser = new FrameModBrowser( &_owner_->getGuiModManager() );
-  modsBrowser->setTitle( g.realName );
-  brls::Application::pushView(modsBrowser, brls::ViewAnimation::SLIDE_LEFT);
-  modsBrowser->registerAction("", brls::Key::PLUS, []{return true;}, true);
-  modsBrowser->updateActionHint(brls::Key::PLUS, "");
+  auto* mods = new FrameMods( &_owner_->getGuiModManager(), g.realName );
+  mods->registerAction("", brls::Key::PLUS, []{return true;}, true);
+  brls::Application::pushView(mods, brls::ViewAnimation::SLIDE_LEFT);
 }
 
 void TabGames::draw(NVGcontext* vg, int x, int y, unsigned width, unsigned height, brls::Style* style, brls::FrameContext* ctx){
@@ -302,7 +301,7 @@ void TabGames::draw(NVGcontext* vg, int x, int y, unsigned width, unsigned heigh
 
   const float pad = 30.f;
   const float left = x + pad, top = y + 22.f;
-  const float panelW = std::min(330.f, width * 0.36f);
+  const float panelW = std::min(400.f, width * 0.34f);
   const float listW = width - pad * 2 - panelW - 28.f;
   const float right = left + listW + 28.f;
 

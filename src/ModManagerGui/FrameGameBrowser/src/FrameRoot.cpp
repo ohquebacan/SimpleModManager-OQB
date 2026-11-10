@@ -18,29 +18,30 @@ LoggerInit([]{
 });
 
 
-FrameRoot::FrameRoot() {
+FrameRoot::FrameRoot() : brls::AppletFrame(false, false) {
   LogWarning << "Build root frame..." << std::endl;
 
-  this->setTitle("SimpleModManager");
-  this->setFooterText( "v" + Toolbox::getAppVersion() );
+  this->setTitle("Mis mods");
+  this->setFooterText( "SimpleModManager v" + Toolbox::getAppVersion() );
   this->setIcon("romfs:/images/icon_corner.png");
-  this->addTab( "Juegos", new TabGames(this) );
-  this->addSeparator();
-  this->addTab( "Ajustes", new TabGeneralSettings(this) );
-  this->addTab( "Acerca de", new TabAbout() );
+  this->setContentView( new TabGames(this) );
 
   LogInfo << "Root frame built." << std::endl;
 }
 
+// Ajustes y Acerca de, con sus pestanas, en un marco aparte.
+void FrameRoot::openSettings() {
+  auto* settings = new brls::TabFrame();
+  settings->setTitle("Ajustes");
+  settings->setIcon("romfs:/images/icon_corner.png");
+  settings->setFooterText( "SimpleModManager v" + Toolbox::getAppVersion() );
+  settings->addTab( "Ajustes", new TabGeneralSettings(this) );
+  settings->addTab( "Acerca de", new TabAbout() );
+  settings->registerAction("", brls::Key::PLUS, []{return true;}, true);
+  brls::Application::pushView(settings, brls::ViewAnimation::SLIDE_LEFT);
+}
+
 bool FrameRoot::onCancel() {
-  // fetch the current focus
-  auto* lastFocus = brls::Application::getCurrentFocus();
-
-  // perform the cancel
-  bool onCancel = TabFrame::onCancel();
-
-  // if the focus is the same, then quit the app
-  if( lastFocus == brls::Application::getCurrentFocus() ){ brls::Application::quit(); }
-
-  return onCancel;
+  brls::Application::quit();
+  return true;
 }
