@@ -1,3 +1,15 @@
+# SimpleModManager (versión OQB)
+
+Versión de [SimpleModManager](https://github.com/nadrino/SimpleModManager), de nadrino, adaptada por OH! QUÉ BACÁN:
+
+- Pantalla de juegos nueva: buscador (Y), orden por recientes, A-Z o más mods (X), mods activos y última vez jugado.
+- Nombre real de cada juego, aunque su carpeta en `/mods` tenga un nombre roto (nombres comprimidos de la NACP desde el firmware 21).
+- A activa o apaga cada mod; pestañas en español.
+
+Todo el mérito del programa original es de nadrino. Licencia GPL-3.0, igual que el original.
+
+---
+
 ![License](https://img.shields.io/badge/License-GPLv3-blue.svg) [![GitHub version](https://badge.fury.io/gh/nadrino%2FSimpleModManager.svg)](https://github.com/nadrino/SimpleModManager/releases/) [![Github all releases](https://img.shields.io/github/downloads/nadrino/SimpleModManager/total.svg)](https://GitHub.com/nadrino/SimpleModManager/releases/)
 
 # SimpleModManager
