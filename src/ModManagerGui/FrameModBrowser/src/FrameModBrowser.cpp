@@ -37,7 +37,7 @@ FrameModBrowser::FrameModBrowser(GuiModManager* guiModManagerPtr_) : _guiModMana
 
     auto* parametersTabList = new brls::List();
 
-    auto* presetParameter = new brls::ListItem("Config preset", "", "");
+    auto* presetParameter = new brls::ListItem("Perfil de instalación", "", "");
     presetParameter->setValue( getGameBrowser().getConfigHandler().getConfig().getCurrentPresetName() );
     parametersTabList->addView(presetParameter);
 
@@ -48,10 +48,10 @@ FrameModBrowser::FrameModBrowser(GuiModManager* guiModManagerPtr_) : _guiModMana
 
     _tabModOptions_->initialize();
 
-    this->addTab("Mod Browser", _tabModBrowser_);
+    this->addTab("Mods", _tabModBrowser_);
     this->addSeparator();
-    this->addTab("Mod Presets", _tabModPresets_);
-    this->addTab("Options", _tabModOptions_);
+    this->addTab("Grupos de mods", _tabModPresets_);
+    this->addTab("Opciones", _tabModOptions_);
     this->addTab("Plugins", _tabModPlugins_);
 
   }

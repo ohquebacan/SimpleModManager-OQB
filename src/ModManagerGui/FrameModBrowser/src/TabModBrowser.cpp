@@ -29,8 +29,8 @@ TabModBrowser::TabModBrowser(FrameModBrowser* owner_) : _owner_(owner_) {
 
     _modItemList_.emplace_back();
     _modItemList_.back().item = new brls::ListItem(
-        "No mods have been found in " + this->getModManager().getGameFolderPath(),
-        "There you need to put your mods such as: ./<name-of-the-mod>/<file-structure-in-installed-directory>"
+        "No hay mods en " + this->getModManager().getGameFolderPath(),
+        "Cada mod va en su carpeta: ./<nombre-del-mod>/<archivos como van en la consola>"
     );
     _modItemList_.back().item->show([](){}, false );
   }
@@ -45,42 +45,22 @@ TabModBrowser::TabModBrowser(FrameModBrowser* owner_) : _owner_(owner_) {
       // memory allocation
       auto* item = new brls::ListItem(mod.modName, "", "");
 
-      // initialization
+      /* OQB: A activa o apaga el mod segun como este (antes A siempre instalaba
+         y X desactivaba, cada uno con su pregunta). Activar copia los archivos
+         del mod; apagar los quita. */
       item->getClickEvent()->subscribe([&, mod](View* view) {
-        auto* dialog = new brls::Dialog("Do you want to install \"" + mod.modName + "\" ?");
-
-        dialog->addButton("Yes", [&, mod, dialog](brls::View* view) {
-          // first, close the dialog box before the apply mod thread starts
-          dialog->close();
-
-          // starts the async routine
-          _owner_->getGuiModManager().startApplyModThread( mod.modName );
-        });
-        dialog->addButton("No", [dialog](brls::View* view) { dialog->close(); });
-
-        dialog->setCancelable(true);
-        dialog->open();
-
-        return true;
-      });
-      item->updateActionHint(brls::Key::A, "Apply");
-
-      item->registerAction("Disable", brls::Key::X, [&, mod]{
-        auto* dialog = new brls::Dialog("Do you want to disable \"" + mod.modName + "\" ?");
-
-        dialog->addButton("Yes", [&, dialog, mod](brls::View* view) {
-          // first, close the dialog box before the async routine starts
-          dialog->close();
-
-          // starts the async routine
+        const auto preset = this->getModManager().fetchCurrentPreset().name;
+        double frac{0};
+        for( auto& m : this->getModManager().getModList() ){ if( m.modName == mod.modName ){ frac = m.getStatusFraction(preset); } }
+        if( frac > 0 ){
           _owner_->getGuiModManager().startRemoveModThread( mod.modName );
-        });
-        dialog->addButton("No", [dialog](brls::View* view) { dialog->close(); });
-
-        dialog->setCancelable(true);
-        dialog->open();
+        }
+        else{
+          _owner_->getGuiModManager().startApplyModThread( mod.modName );
+        }
         return true;
       });
+      item->updateActionHint(brls::Key::A, "Activar / apagar");
 
       // create the holding struct
       _modItemList_.emplace_back();
@@ -122,8 +102,19 @@ void TabModBrowser::updateDisplayedModsStatus(){
   for( size_t iMod = 0 ; iMod < modEntryList.size() ; iMod++ ){
 
     // processing tag
-    _modItemList_[iMod].item->setValue( modEntryList[iMod].getStatus(currentPreset ) );
     double frac = modEntryList[iMod].getStatusFraction(currentPreset);
+    // OQB: el estado en palabras, no "ACTIVE" / "PARTIAL (3/7)".
+    const std::string status = modEntryList[iMod].getStatus(currentPreset);
+    std::string label;
+    if( status.empty() ) label = "Sin revisar";
+    else if( status == "NO FILE" ) label = "Sin archivos";
+    else if( frac == 0 ) label = "Apagado";
+    else if( frac == 1 ) label = "Activo";
+    else{
+      const auto open = status.find('(');
+      label = "A medias " + (open == std::string::npos ? std::string() : status.substr(open));
+    }
+    _modItemList_[iMod].item->setValue( label );
 
     NVGcolor color;
     // processing color

@@ -24,10 +24,10 @@ FrameRoot::FrameRoot() {
   this->setTitle("SimpleModManager");
   this->setFooterText( "v" + Toolbox::getAppVersion() );
   this->setIcon("romfs:/images/icon_corner.png");
-  this->addTab( "Game Browser", new TabGames(this) );
+  this->addTab( "Juegos", new TabGames(this) );
   this->addSeparator();
-  this->addTab( "Settings", new TabGeneralSettings(this) );
-  this->addTab( "About", new TabAbout() );
+  this->addTab( "Ajustes", new TabGeneralSettings(this) );
+  this->addTab( "Acerca de", new TabAbout() );
 
   LogInfo << "Root frame built." << std::endl;
 }
