@@ -13,6 +13,7 @@
 
 #include "map"
 #include "string"
+#include <vector>
 
 
 struct ModItem;
@@ -32,6 +33,11 @@ public:
 private:
   FrameModBrowser* _owner_{nullptr};
   std::vector<ModItem> _modItemList_{};
+  // OQB: mods que tocan algun archivo en comun (por nombre de mod)
+  std::map<std::string, std::vector<std::string>> _conflicts_{};
+
+  void findConflicts();
+  void toggleMod(const std::string& modName_);
 };
 
 

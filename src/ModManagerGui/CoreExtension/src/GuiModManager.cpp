@@ -95,7 +95,7 @@ void GuiModManager::getModStatus(const std::string &modName_, bool useCache_) {
 
   int sameFileCount = 0;
 
-  modCheckMonitor.currentFile = "Listing mod files...";
+  modCheckMonitor.currentFile = "Buscando los archivos del mod…";
   std::vector<std::string> modFileList = GenericToolbox::lsFilesRecursive(modPath);
 
   for( size_t iFile = 0 ; iFile < modFileList.size() ; iFile++ ){
@@ -286,7 +286,7 @@ bool GuiModManager::applyModFunction(const std::string& modName_){
   _loadingPopup_.getMonitorView()->setExecOnDelete([this]{ this->_triggeredOnCancel_ = true; });
 
   LogWarning << "Applying: " << modName_ << std::endl;
-  _loadingPopup_.getMonitorView()->setHeaderTitle("Applying mod...");
+  _loadingPopup_.getMonitorView()->setHeaderTitle("Activando el mod…");
   _loadingPopup_.getMonitorView()->setProgressColor(GenericToolbox::Borealis::greenNvgColor);
   _loadingPopup_.getMonitorView()->resetMonitorAddresses();
   _loadingPopup_.getMonitorView()->setTitlePtr( &modName_ );
@@ -297,7 +297,7 @@ bool GuiModManager::applyModFunction(const std::string& modName_){
   if( _triggeredOnCancel_ ){ return this->leaveModAction(false); }
 
   LogWarning << "Checking: " << modName_ << std::endl;
-  _loadingPopup_.getMonitorView()->setHeaderTitle("Checking the applied mod...");
+  _loadingPopup_.getMonitorView()->setHeaderTitle("Revisando el mod activado…");
   _loadingPopup_.getMonitorView()->setProgressColor(GenericToolbox::Borealis::blueNvgColor);
   _loadingPopup_.getMonitorView()->resetMonitorAddresses();
   _loadingPopup_.getMonitorView()->setTitlePtr(&modName_);
@@ -313,9 +313,9 @@ bool GuiModManager::applyModPresetFunction(const std::string& presetName_){
   _loadingPopup_.pushView();
   _loadingPopup_.getMonitorView()->setExecOnDelete([this]{ this->_triggeredOnCancel_ = true; });
 
-  LogInfo << "Removing all installed mods..." << std::endl;
+  LogInfo << "Apagando todos los mods…" << std::endl;
   _loadingPopup_.getMonitorView()->setProgressColor(GenericToolbox::Borealis::redNvgColor);
-  _loadingPopup_.getMonitorView()->setHeaderTitle("Removing all installed mods...");
+  _loadingPopup_.getMonitorView()->setHeaderTitle("Apagando todos los mods…");
   _loadingPopup_.getMonitorView()->resetMonitorAddresses();
   _loadingPopup_.getMonitorView()->setTitlePtr( &modRemoveAllMonitor.currentMod );
   _loadingPopup_.getMonitorView()->setSubTitlePtr( &modRemoveMonitor.currentFile );
@@ -325,7 +325,7 @@ bool GuiModManager::applyModPresetFunction(const std::string& presetName_){
   if( _triggeredOnCancel_ ){ return this->leaveModAction(false); }
 
   LogInfo("Applying Mod Preset");
-  _loadingPopup_.getMonitorView()->setHeaderTitle("Applying mod preset...");
+  _loadingPopup_.getMonitorView()->setHeaderTitle("Aplicando el grupo de mods…");
   _loadingPopup_.getMonitorView()->setProgressColor(GenericToolbox::Borealis::greenNvgColor);
   _loadingPopup_.getMonitorView()->resetMonitorAddresses();
   _loadingPopup_.getMonitorView()->setTitlePtr( &modApplyListMonitor.currentMod );
@@ -340,9 +340,9 @@ bool GuiModManager::applyModPresetFunction(const std::string& presetName_){
   this->applyModsList(modsList);
   if( _triggeredOnCancel_ ){ return this->leaveModAction(false); }
 
-  LogInfo("Checking all mods status...");
+  LogInfo("Revisando el estado de los mods…");
   _loadingPopup_.getMonitorView()->setProgressColor(GenericToolbox::Borealis::blueNvgColor);
-  _loadingPopup_.getMonitorView()->setHeaderTitle("Checking all mods status...");
+  _loadingPopup_.getMonitorView()->setHeaderTitle("Revisando el estado de los mods…");
 
   _loadingPopup_.getMonitorView()->resetMonitorAddresses();
   _loadingPopup_.getMonitorView()->setTitlePtr( &modCheckAllMonitor.currentMod );
@@ -360,7 +360,7 @@ bool GuiModManager::removeModFunction(const std::string& modName_){
   _loadingPopup_.getMonitorView()->setExecOnDelete([this]{ this->_triggeredOnCancel_ = true; });
 
   LogWarning << "Removing: " << modName_ << std::endl;
-  _loadingPopup_.getMonitorView()->setHeaderTitle("Removing mod...");
+  _loadingPopup_.getMonitorView()->setHeaderTitle("Apagando el mod…");
   _loadingPopup_.getMonitorView()->setProgressColor(GenericToolbox::Borealis::redNvgColor);
   _loadingPopup_.getMonitorView()->resetMonitorAddresses();
   _loadingPopup_.getMonitorView()->setTitlePtr(&modName_);
@@ -371,7 +371,7 @@ bool GuiModManager::removeModFunction(const std::string& modName_){
 
   LogWarning << "Checking: " << modName_ << std::endl;
   _loadingPopup_.getMonitorView()->setProgressColor( GenericToolbox::Borealis::blueNvgColor );
-  _loadingPopup_.getMonitorView()->setHeaderTitle("Checking mod...");
+  _loadingPopup_.getMonitorView()->setHeaderTitle("Revisando el mod…");
   _loadingPopup_.getMonitorView()->resetMonitorAddresses();
   _loadingPopup_.getMonitorView()->setTitlePtr(&modName_);
   _loadingPopup_.getMonitorView()->setSubTitlePtr( &modCheckMonitor.currentFile );
@@ -386,9 +386,9 @@ bool GuiModManager::checkAllModsFunction(){
   _loadingPopup_.pushView();
   _loadingPopup_.getMonitorView()->setExecOnDelete([this]{ this->_triggeredOnCancel_ = true; });
 
-  LogInfo("Checking all mods status...");
+  LogInfo("Revisando el estado de los mods…");
   _loadingPopup_.getMonitorView()->setProgressColor(GenericToolbox::Borealis::blueNvgColor);
-  _loadingPopup_.getMonitorView()->setHeaderTitle("Checking all mods status...");
+  _loadingPopup_.getMonitorView()->setHeaderTitle("Revisando el estado de los mods…");
   _loadingPopup_.getMonitorView()->resetMonitorAddresses();
   _loadingPopup_.getMonitorView()->setTitlePtr( &modCheckAllMonitor.currentMod );
   _loadingPopup_.getMonitorView()->setSubTitlePtr( &modCheckMonitor.currentFile );
@@ -405,9 +405,9 @@ bool GuiModManager::removeAllModsFunction(){
   _loadingPopup_.pushView();
   _loadingPopup_.getMonitorView()->setExecOnDelete([this]{ this->_triggeredOnCancel_ = true; });
 
-  LogInfo("Removing all installed mods...");
+  LogInfo("Apagando todos los mods…");
   _loadingPopup_.getMonitorView()->setProgressColor(GenericToolbox::Borealis::redNvgColor);
-  _loadingPopup_.getMonitorView()->setHeaderTitle("Removing all installed mods...");
+  _loadingPopup_.getMonitorView()->setHeaderTitle("Apagando todos los mods…");
   _loadingPopup_.getMonitorView()->resetMonitorAddresses();
   _loadingPopup_.getMonitorView()->setTitlePtr( &modRemoveAllMonitor.currentMod );
   _loadingPopup_.getMonitorView()->setSubTitlePtr( &modRemoveMonitor.currentFile );
@@ -416,9 +416,9 @@ bool GuiModManager::removeAllModsFunction(){
   this->removeAllMods();
   if( _triggeredOnCancel_ ){ return this->leaveModAction(false); }
 
-  LogInfo("Checking all mods status...");
+  LogInfo("Revisando el estado de los mods…");
   _loadingPopup_.getMonitorView()->setProgressColor(GenericToolbox::Borealis::blueNvgColor);
-  _loadingPopup_.getMonitorView()->setHeaderTitle("Checking all mods status...");
+  _loadingPopup_.getMonitorView()->setHeaderTitle("Revisando el estado de los mods…");
   _loadingPopup_.getMonitorView()->resetMonitorAddresses();
   _loadingPopup_.getMonitorView()->setTitlePtr( &modCheckAllMonitor.currentMod );
   _loadingPopup_.getMonitorView()->setSubTitlePtr( &modCheckMonitor.currentFile );

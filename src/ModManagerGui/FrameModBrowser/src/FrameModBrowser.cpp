@@ -58,9 +58,9 @@ FrameModBrowser::FrameModBrowser(GuiModManager* guiModManagerPtr_) : _guiModMana
   else{
     auto* list = new brls::List();
     LogError("Can't open: %s", gamePath.c_str());
-    auto* item = new brls::ListItem("Error: Can't open " + gamePath , "", "");
+    auto* item = new brls::ListItem("No se pudo abrir " + gamePath , "", "");
     list->addView(item);
-    this->addTab("Mod Browser", list);
+    this->addTab("Mods", list);
   }
 
 }

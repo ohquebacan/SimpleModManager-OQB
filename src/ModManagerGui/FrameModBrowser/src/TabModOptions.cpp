@@ -20,12 +20,12 @@ TabModOptions::TabModOptions(FrameModBrowser* owner_) : _owner_(owner_) {  }
 void TabModOptions::buildFolderInstallPresetItem() {
 
   _itemConfigPreset_ = new brls::ListItem(
-    "\uE255 Config preset",
-    "Specify from which install folder mods from this subfolder (game) will be installed.\n",
+    "\uE255 Perfil de instalación",
+    "La carpeta donde se instalan los mods de este juego.\n",
     ""
   );
 
-  _itemConfigPreset_->setValue("Inherited from the main menu");
+  _itemConfigPreset_->setValue("El mismo del menú principal");
   if( not this->getModManager().getCurrentPresetName().empty() ){
     _itemConfigPreset_->setValue( this->getModManager().getCurrentPresetName() );
   }
@@ -38,7 +38,7 @@ void TabModOptions::buildFolderInstallPresetItem() {
     int preSelection{0};
     std::vector<std::string> menuList;
     menuList.reserve( 1 + this->getModManager().getConfig().presetList.size() );
-    menuList.emplace_back( "Inherited from the main menu" );
+    menuList.emplace_back( "El mismo del menú principal" );
     int iPreset{-1};
     for( auto& preset: this->getModManager().getConfig().presetList ){
       iPreset++;
@@ -57,7 +57,7 @@ void TabModOptions::buildFolderInstallPresetItem() {
       if( result == 0 ){
         LogDebug << "Same as config selected. Deleting file..." << std::endl;
         this->getModManager().setCustomPreset("");
-        _itemConfigPreset_->setValue( "Inherited from the main menu" );
+        _itemConfigPreset_->setValue( "El mismo del menú principal" );
       }
       else{
         LogDebug << "Selected " << result - 1 << std::endl;
@@ -71,7 +71,7 @@ void TabModOptions::buildFolderInstallPresetItem() {
     }; // Callback sequence
 
     brls::Dropdown::open(
-        "Please select the config preset you want for this folder",
+        "Elige el perfil de instalación de este juego",
         menuList, valueCallback,
         preSelection,
         true
@@ -83,18 +83,18 @@ void TabModOptions::buildFolderInstallPresetItem() {
 void TabModOptions::buildResetModsCacheItem() {
 
   _itemResetModsCache_ = new brls::ListItem(
-    "\uE877 Recheck all mods",
-    "\tThis option resets all mods cache status and recheck if each files is properly applied.\n"
-              "\tWhen files where managed without SimpleModManager, the displayed mod status can be wrong. "
-              "This typically happens when you modified some mod files, or other programs override some of the applied files.",
+    "\uE877 Volver a revisar todos los mods",
+    "\tBorra el estado guardado y revisa si cada archivo de cada mod está instalado.\n"
+              "\tSi tocaste archivos sin SimpleModManager, el estado que se muestra puede estar mal. "
+              "Pasa sobre todo al editar archivos de un mod o cuando otro programa reemplaza archivos instalados.",
     ""
   );
 
   _itemResetModsCache_->getClickEvent()->subscribe([this](View* view){
 
-    auto* dialog = new brls::Dialog("Do you want to reset mods cache status and recheck all mod files ?");
+    auto* dialog = new brls::Dialog("¿Volver a revisar todos los archivos de los mods?");
 
-    dialog->addButton("Yes", [&, dialog](brls::View* view) {
+    dialog->addButton("Sí", [&, dialog](brls::View* view) {
       // first, close the dialog box before the async routine starts
       dialog->close();
 
@@ -114,17 +114,17 @@ void TabModOptions::buildResetModsCacheItem() {
 void TabModOptions::buildDisableAllMods() {
 
   _itemDisableAllMods_ = new brls::ListItem(
-    "\uE872 Disable all installed mods",
-    "This option will remove all installed mods files.\n"
-              "Note: to be deleted, installed mod files need to be identical to the one present in this folder.",
+    "\uE872 Apagar todos los mods",
+    "Quita los archivos de todos los mods instalados.\n"
+              "Solo se borran los archivos idénticos a los de la carpeta del mod.",
     ""
   );
 
   _itemDisableAllMods_->getClickEvent()->subscribe([this](View* view){
 
-    auto* dialog = new brls::Dialog("Do you want to disable all installed mods ?");
+    auto* dialog = new brls::Dialog("¿Apagar todos los mods de este juego?");
 
-    dialog->addButton("Yes", [&, dialog](brls::View* view) {
+    dialog->addButton("Sí", [&, dialog](brls::View* view) {
       // first, close the dialog box before the async routine starts
       dialog->close();
 
@@ -144,9 +144,9 @@ void TabModOptions::buildDisableAllMods() {
 void TabModOptions::buildGameIdentificationItem(){
 
   _itemGameIdentification_ = new brls::ListItem(
-    "Associated TitleID",
+    "TitleID del juego",
     "",
-    "Current value: "
+    "Valor actual: "
   );
 
   if( _owner_->getIcon() != nullptr ){
@@ -157,7 +157,7 @@ void TabModOptions::buildGameIdentificationItem(){
   }
   else{
     _itemGameIdentification_->setSubLabel(
-        _itemGameIdentification_->getSubLabel() + "Not found."
+        _itemGameIdentification_->getSubLabel() + "No encontrado."
     );
   }
 

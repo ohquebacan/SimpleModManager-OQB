@@ -86,9 +86,9 @@ TabModPlugins::TabModPlugins(FrameModBrowser* owner_) : _owner_(owner_) {
 		item->setValue(selected_plugin_version);
 		item->getClickEvent()->subscribe([this, selected_plugin, selected_plugin_path](View *view) {
       LogDebug << "selected_plugin_path = " << selected_plugin_path << std::endl;
-			auto *dialog = new brls::Dialog("Do you want to start \"" + selected_plugin + "\" ?");
+			auto *dialog = new brls::Dialog("¿Abrir \"" + selected_plugin + "\"?");
 
-			dialog->addButton("Yes", [selected_plugin_path, dialog](brls::View *view) {
+			dialog->addButton("Sí", [selected_plugin_path, dialog](brls::View *view) {
 				envSetNextLoad(selected_plugin_path.c_str(), selected_plugin_path.c_str());
 				brls::Application::quit();
 				dialog->close();
@@ -102,7 +102,7 @@ TabModPlugins::TabModPlugins(FrameModBrowser* owner_) : _owner_(owner_) {
 
 			return true;
 		});
-		item->updateActionHint(brls::Key::A, "Start");
+		item->updateActionHint(brls::Key::A, "Abrir");
 		item->setValueActiveColor(nvgRGB(80, 128, 80));
 		brls::Image *icon = load_image_cache(selected_plugin_path);
 		item->setThumbnail(icon);

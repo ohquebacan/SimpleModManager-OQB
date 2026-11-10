@@ -48,10 +48,10 @@ void TabModPresets::assignButtons(brls::ListItem *item, bool isPreset_) {
   auto* ownerPtr{_owner_};
 
   if( isPreset_ ){
-    item->registerAction("Apply", brls::Key::A, [item, ownerPtr]{
-      auto* dialog = new brls::Dialog("Do you want disable all installed mods and apply the preset \"" + item->getLabel() + "\" ?");
+    item->registerAction("Aplicar", brls::Key::A, [item, ownerPtr]{
+      auto* dialog = new brls::Dialog("¿Apagar los mods instalados y aplicar el grupo \"" + item->getLabel() + "\"?");
 
-      dialog->addButton("Yes", [&, dialog, item](brls::View* view) {
+      dialog->addButton("Sí", [&, dialog, item](brls::View* view) {
         // first, close the dialog box before the apply mod thread starts
         dialog->close();
 
@@ -66,11 +66,11 @@ void TabModPresets::assignButtons(brls::ListItem *item, bool isPreset_) {
       dialog->open();
       return true;
     });
-    item->registerAction("Remove", brls::Key::X, [this, ownerPtr, item]{
+    item->registerAction("Borrar", brls::Key::X, [this, ownerPtr, item]{
 
-      auto* dialog = new brls::Dialog("Do you want to delete the preset \"" + item->getLabel() + "\" ?");
+      auto* dialog = new brls::Dialog("¿Borrar el grupo \"" + item->getLabel() + "\"?");
 
-      dialog->addButton("Yes", [this, ownerPtr, item, dialog](brls::View* view) {
+      dialog->addButton("Sí", [this, ownerPtr, item, dialog](brls::View* view) {
         ownerPtr->getGameBrowser().getModPresetHandler().deletePreset( item->getLabel() );
         dialog->close();
         this->setTriggerUpdateItem( true );
@@ -82,32 +82,32 @@ void TabModPresets::assignButtons(brls::ListItem *item, bool isPreset_) {
       return true;
 
     });
-    item->registerAction("Edit", brls::Key::Y, [ownerPtr, item]{
+    item->registerAction("Editar", brls::Key::Y, [ownerPtr, item]{
       // open editor
       auto* editor = new ThumbnailPresetEditor( ownerPtr, item->getLabel() );
 
       auto* icon = ownerPtr->getIcon();
       if(icon != nullptr){
         brls::PopupFrame::open(
-            "Edit preset", icon, 0x20000, editor,
-            "Please select the mods you want to install",
-            "The mods will be applied in the same order."
+            "Editar grupo", icon, 0x20000, editor,
+            "Elige los mods que quieres instalar",
+            "Se aplican en el mismo orden."
         );
       }
       else{
         brls::PopupFrame::open(
-            "Edit preset", editor,
-            "Please select the mods you want to install",
-            "The mods will be applied in the same order."
+            "Editar grupo", editor,
+            "Elige los mods que quieres instalar",
+            "Se aplican en el mismo orden."
         );
       }
 
       return true;
     });
 
-    item->updateActionHint(brls::Key::A, "Apply");
-    item->updateActionHint(brls::Key::X, "Remove");
-    item->updateActionHint(brls::Key::Y, "Edit");
+    item->updateActionHint(brls::Key::A, "Aplicar");
+    item->updateActionHint(brls::Key::X, "Borrar");
+    item->updateActionHint(brls::Key::Y, "Editar");
 
     item->setActionAvailable(brls::Key::A, true);
     item->setActionAvailable(brls::Key::X, true);
@@ -115,29 +115,29 @@ void TabModPresets::assignButtons(brls::ListItem *item, bool isPreset_) {
   }
   else {
     // new preset
-    item->registerAction("Create", brls::Key::A, [ownerPtr]{
+    item->registerAction("Crear", brls::Key::A, [ownerPtr]{
       // create new preset
       auto* editor = new ThumbnailPresetEditor( ownerPtr );
 
       auto* icon = ownerPtr->getIcon();
       if(icon != nullptr){
         brls::PopupFrame::open(
-            "New preset", icon, 0x20000, editor,
-            "Please select the mods you want to install",
-            "The mods will be applied in the same order."
+            "Grupo nuevo", icon, 0x20000, editor,
+            "Elige los mods que quieres instalar",
+            "Se aplican en el mismo orden."
         );
       }
       else{
         brls::PopupFrame::open(
-            "New preset", editor,
-            "Please select the mods you want to install",
-            "The mods will be applied in the same order."
+            "Grupo nuevo", editor,
+            "Elige los mods que quieres instalar",
+            "Se aplican en el mismo orden."
         );
       }
 
       return true;
     });
-    item->updateActionHint(brls::Key::A, "Create");
+    item->updateActionHint(brls::Key::A, "Crear");
 
     item->setActionAvailable(brls::Key::A, true);
   }
@@ -171,20 +171,20 @@ void TabModPresets::updatePresetItems() {
     }
     this->assignButtons( _itemList_[ iPreset ], true );
     _itemList_[ iPreset ]->setLabel( presetList[iPreset].name );
-    _itemList_[ iPreset ]->setValue( std::to_string(presetList[iPreset].modList.size()) + " mods in this set" );
+    _itemList_[ iPreset ]->setValue( std::to_string(presetList[iPreset].modList.size()) + " mods en este grupo" );
     if( _itemList_[iPreset]->isCollapsed() ) _itemList_[iPreset]->expand();
   }
 
   // need one more slot for create new preset
   if( iPreset+1 > _itemList_.size() ){
     LogInfo << "(re)-Creating add button" << std::endl;
-    _itemList_.emplace_back( new brls::ListItem( "\uE402 Create a new mod preset" ) );
+    _itemList_.emplace_back( new brls::ListItem( "\uE402 Crear un grupo de mods" ) );
 
     this->addView( _itemList_[ iPreset ] );
   }
   this->assignButtons( _itemList_[ iPreset ], false );
   if( _itemList_[iPreset]->isCollapsed() ) _itemList_[iPreset]->expand();
-  _itemList_[ iPreset ]->setLabel( "\uE402 Create a new mod preset" );
+  _itemList_[ iPreset ]->setLabel( "\uE402 Crear un grupo de mods" );
   _itemList_[ iPreset ]->setValue( "" );
   iPreset++;
 

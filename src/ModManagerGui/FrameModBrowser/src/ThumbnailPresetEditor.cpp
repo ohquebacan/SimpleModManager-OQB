@@ -29,7 +29,7 @@ ThumbnailPresetEditor::ThumbnailPresetEditor(FrameModBrowser* owner_, const std:
     });
 
     // remove mod
-    item->registerAction("Remove", brls::Key::X, [this,item]{
+    item->registerAction("Quitar", brls::Key::X, [this,item]{
 
       if( _bufferPreset_.modList.empty() ){
         // nothing to remove
@@ -125,7 +125,7 @@ void ThumbnailPresetEditor::updateTags() {
   }
 
   std::stringstream ss;
-  ss << this->_bufferPreset_.modList.size() << " mods have been selected.";
+  ss << this->_bufferPreset_.modList.size() << " mods elegidos.";
   this->getSidebar()->setSubtitle( ss.str() );
 
 }

@@ -22,11 +22,11 @@ TabGeneralSettings::TabGeneralSettings(FrameRoot* owner_) : _owner_(owner_) {
 void TabGeneralSettings::rebuildLayout() {
 
   itemInstallLocationPreset = new brls::ListItem(
-    "\uE255 Install location:",
-    "Specify from which base folder mods will be installed.\n"\
-    "- If you are using Atmosphere, mods have to be installed in /atmosphere/. "\
-    "This corresponds to the \"default\" preset. You need to take this path into account in your mod tree structure.\n"\
-    "- If you want to set a specific install folder for a given game, please refer to its Option tab and go to \"Attribute a config preset\".",
+    "\uE255 Dónde se instalan:",
+    "La carpeta base donde se copian los mods.\n"\
+    "- Con Atmosphère, los mods van en /atmosphere/. "\
+    "Es el perfil \"default\". Ten en cuenta esa ruta al armar las carpetas de cada mod.\n"\
+    "- Para que un juego use otra carpeta, ve a su pestaña Opciones y elige su perfil de instalación.",
     ""
   );
   itemInstallLocationPreset->setValue(this->getConfig().getCurrentPresetName() );
@@ -49,7 +49,7 @@ void TabGeneralSettings::rebuildLayout() {
     }
 
     brls::Dropdown::open(
-      "Current install preset:",
+      "Perfil de instalación actual:",
       presetNameList,
       valueCallback,
       this->getConfig().selectedPresetIndex
@@ -58,17 +58,17 @@ void TabGeneralSettings::rebuildLayout() {
   this->addView(itemInstallLocationPreset);
 
   auto* itemStoredModsBaseFolder = new brls::ListItem(
-    "\uE431 Stored mods location:",
-    "This is the place where SimpleModManager will look for your mods. From this folder, the tree structure must look like this:\n"\
-    "./<name-of-the-game-or-category>/<mod-name>/<mod-tree-structure>.",
+    "\uE431 Dónde están guardados los mods:",
+    "La carpeta donde SimpleModManager busca tus mods. Dentro, las carpetas van así:\n"\
+    "./<juego-o-categoría>/<nombre-del-mod>/<archivos-del-mod>.",
     "");
   itemStoredModsBaseFolder->setValue( this->getConfig().baseFolder );
   this->addView(itemStoredModsBaseFolder);
 
 
   auto*  itemSortGames = new brls::ListItem(
-      "\uE255 Sort games by",
-      "Set which ordering of the games are displayed in the Game Browser list.\n",
+      "\uE255 Ordenar los juegos por",
+      "El orden de la lista de juegos (también se cambia con X en Juegos).\n",
       ""
   );
   itemSortGames->setValue( this->getConfig().sortGameList.toString() );
@@ -105,7 +105,7 @@ void TabGeneralSettings::rebuildLayout() {
     }; // Callback sequence
 
     brls::Dropdown::open(
-        "Please select the sort preset you want",
+        "Elige el orden",
         menuList, valueCallback,
         preSelection,
         true
@@ -115,14 +115,14 @@ void TabGeneralSettings::rebuildLayout() {
   this->addView(itemSortGames);
 
 
-  auto* itemUseUI = new brls::ListItem("\uE072 Disable the GUI", "If you want to go back on the old UI, select this option.");
+  auto* itemUseUI = new brls::ListItem("\uE072 Usar la interfaz de texto", "Vuelve a la interfaz antigua, estilo consola.");
 
-  itemUseUI->updateActionHint(brls::Key::B, "Back");
-  itemUseUI->registerAction("Select", brls::Key::A, [&](){
+  itemUseUI->updateActionHint(brls::Key::B, "Volver");
+  itemUseUI->registerAction("Elegir", brls::Key::A, [&](){
 
-    auto* dialog = new brls::Dialog("Do you want to disable this GUI and switch back to the console-style UI ?");
+    auto* dialog = new brls::Dialog("¿Cambiar a la interfaz de texto, estilo consola?");
 
-    dialog->addButton("Yes", [&](brls::View* view) {
+    dialog->addButton("Sí", [&](brls::View* view) {
       this->getConfig().useGui = false;
       _owner_->getGuiModManager().getGameBrowser().getConfigHandler().dumpConfigToFile();
       brls::Application::quit();
