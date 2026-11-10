@@ -33,12 +33,21 @@ public:
 private:
   FrameRoot* _owner_{};
   std::vector<GameItem> _gameList_;
+  std::string _filter_{};  // OQB: texto del buscador
+  brls::ListItem* _emptyItem_{nullptr};
+  bool _built_{false};
+
+  void rebuildList();
 
 };
 
 struct GameItem{
-  std::string title{};
+  std::string title{};      // nombre de la carpeta en /mods
+  std::string realName{};   // OQB: nombre del juego segun la consola (o la carpeta)
   int nMods{-1};
+  uint32_t lastPlayed{0};   // OQB: ultima vez jugado (0 = nunca o desconocido)
+  uint32_t minutesAgo{0};
+  bool playedKnown{false};
 
   // memory is fully handled by brls
   brls::ListItem* item{nullptr};

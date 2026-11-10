@@ -27,11 +27,12 @@ struct ConfigHolder{
 #define ENUM_FIELDS \
   ENUM_FIELD( NbMods, 0 ) \
   ENUM_FIELD( Alphabetical ) \
-  ENUM_FIELD( NoSort )
+  ENUM_FIELD( NoSort ) \
+  ENUM_FIELD( Recent )
 #include "GenericToolbox.MakeEnum.h"
 
   bool useGui{true};
-  SortGameList sortGameList{SortGameList::NbMods};
+  SortGameList sortGameList{SortGameList::Recent};
   std::string baseFolder{"/mods"};
   int selectedPresetIndex{0};
   std::vector<PresetConfig> presetList{
