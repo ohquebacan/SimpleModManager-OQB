@@ -280,6 +280,31 @@ void GuiModManager::startApplyModPresetThread(const std::string &modPresetName_)
   _asyncResponse_ = std::async(&GuiModManager::applyModPresetFunction, this, modPresetName_);
 }
 
+void GuiModManager::startPrepareGameThread(const std::string& gameFolder_, const std::string& tid_, const std::string& installBase_){
+  this->_triggeredOnCancel_ = false;
+  _prepareCancel_ = false;
+  _asyncResponse_ = std::async(&GuiModManager::prepareGameFunction, this, gameFolder_, tid_, installBase_);
+}
+bool GuiModManager::isTaskRunning() const {
+  return _asyncResponse_.valid() and
+      _asyncResponse_.wait_for(std::chrono::seconds(0)) != std::future_status::ready;
+}
+bool GuiModManager::prepareGameFunction(std::string gameFolder_, std::string tid_, std::string installBase_){
+  _loadingPopup_.pushView();
+  _loadingPopup_.getMonitorView()->setExecOnDelete([this]{ this->_triggeredOnCancel_ = true; this->_prepareCancel_ = true; });
+  _prepareProgress_ = oqb::mods::Progreso();
+  _prepareTitle_ = GenericToolbox::getFileName(gameFolder_);
+  _loadingPopup_.getMonitorView()->setHeaderTitle("Preparando los mods…");
+  _loadingPopup_.getMonitorView()->setProgressColor(GenericToolbox::Borealis::blueNvgColor);
+  _loadingPopup_.getMonitorView()->resetMonitorAddresses();
+  _loadingPopup_.getMonitorView()->setTitlePtr( &_prepareTitle_ );
+  _loadingPopup_.getMonitorView()->setSubTitlePtr( &_prepareProgress_.actual );
+  _loadingPopup_.getMonitorView()->setProgressFractionPtr( &_prepareProgress_.fraccion );
+  _loadingPopup_.getMonitorView()->setSubProgressFractionPtr( &_prepareSub_ );
+  const std::string resumen = oqb::mods::Preparar(gameFolder_, tid_, installBase_, _prepareProgress_, _prepareCancel_);
+  LogInfo << "Mods preparados en " << gameFolder_ << ": " << resumen << std::endl;
+  return this->leaveModAction(not _prepareCancel_);
+}
 bool GuiModManager::applyModFunction(const std::string& modName_){
   // push the progress bar to the view
   _loadingPopup_.pushView();

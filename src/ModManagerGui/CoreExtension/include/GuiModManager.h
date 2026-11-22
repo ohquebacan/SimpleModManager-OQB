@@ -8,6 +8,7 @@
 
 #include "GameBrowser.h"
 #include "GenericToolbox.Borealis.h"
+#include "OqbMods.h"
 
 #include <borealis.hpp>
 
@@ -33,6 +34,9 @@ public:
   void startCheckAllModsThread();
   void startRemoveAllModsThread();
   void startApplyModPresetThread(const std::string &modPresetName_);
+  // OH! QUÉ BACÁN: zips, .pchtxt y carpetas raras de un juego, antes de abrirlo.
+  void startPrepareGameThread(const std::string& gameFolder_, const std::string& tid_, const std::string& installBase_);
+  [[nodiscard]] bool isTaskRunning() const;
 
   void applyMod(const std::string &modName_);
   void applyModsList(std::vector<std::string>& modsList_);
@@ -47,6 +51,7 @@ protected:
   bool removeModFunction(const std::string& modName_);
   bool checkAllModsFunction();
   bool removeAllModsFunction();
+  bool prepareGameFunction(std::string gameFolder_, std::string tid_, std::string installBase_);
 
   bool leaveModAction(bool isSuccess_);
 
@@ -64,6 +69,10 @@ private:
 
   // monitors
   GenericToolbox::Borealis::PopupLoadingBox _loadingPopup_;
+  oqb::mods::Progreso _prepareProgress_{};
+  std::string _prepareTitle_{};
+  double _prepareSub_{0};
+  std::atomic<bool> _prepareCancel_{false};
   struct ModApplyMonitor{
     double progress{0};
     std::string currentFile{};

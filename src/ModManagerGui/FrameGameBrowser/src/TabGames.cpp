@@ -351,8 +351,22 @@ void TabGames::move(int delta_){
 }
 
 void TabGames::openSelected(){
-  if( _visible_.empty() ) return;
-  const GameItem& g = _gameList_[_visible_[_selected_]];
+  if( _visible_.empty() or not _pendingOpen_.empty() ) return;
+  GameItem& g = _gameList_[_visible_[_selected_]];
+  /* OH! QUÉ BACÁN: antes de abrir, los .zip/.7z/.rar se descomprimen, los
+     .pchtxt pasan a .ips y los mods con otra estructura se ordenan (OqbMods).
+     Solo si hace falta; con su ventana de progreso, y al terminar se abre. */
+  const std::string gamePath{GenericToolbox::joinPath(this->getConfig().baseFolder, g.title)};
+  const std::string base = getGameBrowser().getModManager().fetchCurrentPreset().installBaseFolder;
+  if( oqb::mods::NecesitaPreparar(gamePath, g.titleId, base) ){
+    LogWarning << "Preparing mods of \"" << g.title << "\"" << std::endl;
+    _pendingOpen_ = g.title;
+    _owner_->getGuiModManager().startPrepareGameThread(gamePath, g.titleId, base);
+    return;
+  }
+  this->openGame(g);
+}
+void TabGames::openGame(GameItem& g){
   LogWarning << "Opening \"" << g.title << "\"" << std::endl;
   getGameBrowser().selectGame( g.title );
   auto* mods = new FrameMods( &_owner_->getGuiModManager(), g.realName, g.icon );
@@ -361,6 +375,17 @@ void TabGames::openSelected(){
 }
 
 void TabGames::draw(NVGcontext* vg, int x, int y, unsigned width, unsigned height, brls::Style* style, brls::FrameContext* ctx){
+  // Terminó de preparar los mods: ahora sí se abre el juego, con la cuenta al día.
+  if( not _pendingOpen_.empty() and not _owner_->getGuiModManager().isTaskRunning() ){
+    const std::string title = _pendingOpen_;
+    _pendingOpen_.clear();
+    for( auto& g : _gameList_ ){
+      if( g.title != title ) continue;
+      g.nMods = int( GenericToolbox::lsDirs(GenericToolbox::joinPath(this->getConfig().baseFolder, g.title)).size() );
+      this->openGame(g);
+      break;
+    }
+  }
   const NVGcolor text = this->a(ctx->theme->textColor);
   const NVGcolor faint = this->a(ctx->theme->descriptionColor);
   const NVGcolor accent = this->a(ctx->theme->highlightColor1);

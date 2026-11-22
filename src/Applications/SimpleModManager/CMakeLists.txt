@@ -28,6 +28,7 @@ target_link_libraries(
     switch::libnx
     -L/opt/devkitpro/portlibs/switch/lib
     -L/opt/devkitpro/libnx/lib
+    -larchive -lzstd -llzma -llz4 -lbz2 -lexpat
     ${ZLIB_LIBRARIES}
     ${FREETYPE_LIBRARIES}
     -lglfw3 -lEGL -lglad -lglapi -ldrm_nouveau -lm -lnx

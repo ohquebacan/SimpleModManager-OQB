@@ -67,6 +67,8 @@ private:
   void rebuildList();
   void move(int delta_);
   void openSelected();
+  void openGame(GameItem& g_);
+  std::string _pendingOpen_{};     // juego que se abre al terminar de preparar sus mods
   void readActiveCounts();
   void updateHints();
   void openSearch();
