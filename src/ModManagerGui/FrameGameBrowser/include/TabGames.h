@@ -1,7 +1,8 @@
 //
 // Created by Adrien BLANCHET on 21/06/2020.
-// OQB: rediseno. La pestana de juegos se dibuja entera (lista, buscador, orden
-// y panel con el detalle del juego elegido) en lugar de una lista de borealis.
+// OQB: rediseno. La pestana de juegos se dibuja entera en lugar de una lista de
+// borealis: portadas en cuadricula, pildoras arriba y abajo, y los ajustes en
+// un panel a la derecha (R).
 //
 
 #ifndef SIMPLEMODMANAGER_TABGAMES_H
@@ -59,9 +60,9 @@ private:
   std::vector<int> _visible_;      // indices de _gameList_ tras filtrar y ordenar
   std::string _filter_{};
   int _selected_{0};
-  int _first_{0};
-  int _zone_{0};       // 0 lista, 1 barra de arriba (buscador y chips de orden)
-  int _headerSel_{0};  // 0 buscador, 1..3 Recientes / A-Z / Mas mods
+  int _firstRow_{0};
+  bool _panel_{false};  // panel de ajustes abierto
+  int _panelSel_{0};
   std::map<int, int> _images_;     // indice del juego -> imagen de NanoVG
 
   void rebuildList();
@@ -70,9 +71,13 @@ private:
   void openGame(GameItem& g_);
   std::string _pendingOpen_{};     // juego que se abre al terminar de preparar sus mods
   void readActiveCounts();
-  void updateHints();
   void openSearch();
   void setSort(int which_);
+  int currentSort() const;
+
+  void drawGrid(NVGcontext* vg, float x_, float y_, float w_, float h_);
+  void drawPanel(NVGcontext* vg, float x_, float y_, float w_, float h_);
+  void panelAction();
 
 };
 

@@ -6,7 +6,7 @@
 #include "SimpleModManager.h"
 
 #include <FrameRoot.h>
-#include "ConsoleHandler.h"
+#include "OqbUi.h"
 
 #include "ConfigHandler.h"
 
@@ -37,13 +37,16 @@ int main(int argc, char* argv[]){
 //  const auto username = config["username"].as<std::string>();
 //  const auto password = config["password"].as<std::string>();
 
-  ConfigHandler c;
-  if( c.getConfig().useGui ){ runGui(); }
-  else{
-    consoleInit(nullptr);
-    ConsoleHandler::run();
-    consoleExit(nullptr);
+  /* OQB: sin la interfaz de texto. Si la configuracion quedo en modo texto
+     (la opcion vieja de Ajustes), se vuelve a la interfaz normal. */
+  {
+    ConfigHandler c;
+    if( not c.getConfig().useGui ){
+      c.getConfig().useGui = true;
+      c.dumpConfigToFile();
+    }
   }
+  runGui();
 
   // Exit
   return EXIT_SUCCESS;
@@ -59,6 +62,13 @@ void runGui(){
   brls::i18n::loadTranslations("en-US");
   LogThrowIf(not brls::Application::init("SimpleModManager"), "Unable to init Borealis application");
 
+  // OQB: colores Amatista y letras de OQB; bateria y Wi-Fi para la barra de arriba.
+  oqbui::usarPaleta(oqbui::leerTema());
+  oqbui::aplicarTema();
+  oqbui::cargarFuentes();
+  const bool psm = R_SUCCEEDED(psmInitialize());
+  const bool nifm = R_SUCCEEDED(nifmInitialize(NifmServiceType_User));
+
   LogInfo << "Creating root frame..." << std::endl;
   auto* mainFrame = new FrameRoot();
 
@@ -69,5 +79,7 @@ void runGui(){
 
   while( brls::Application::mainLoop() ){  }
 
+  if( nifm ) nifmExit();
+  if( psm ) psmExit();
   nsExit();
 }

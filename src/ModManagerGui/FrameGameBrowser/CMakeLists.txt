@@ -7,7 +7,6 @@ set( SRC_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/FrameRoot.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/TabAbout.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/TabGames.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/TabGeneralSettings.cpp
     )
 
 

@@ -24,39 +24,19 @@ namespace {
     return s_;
   }
 
-  std::string fit(NVGcontext* vg, const std::string& text_, float width_){
-    if( nvgTextBounds(vg, 0, 0, text_.c_str(), nullptr, nullptr) <= width_ ) return text_;
-    std::string s = text_;
-    while( not s.empty() ){
-      do s.pop_back(); while( not s.empty() and (static_cast<unsigned char>(s.back()) & 0xC0) == 0x80 );
-      if( not s.empty() ) s.pop_back();
-      const std::string test = s + "…";
-      if( nvgTextBounds(vg, 0, 0, test.c_str(), nullptr, nullptr) <= width_ ) return test;
-    }
-    return "…";
+  // Que tipo de mod es, por las rutas de sus archivos.
+  int kindOfPath(const std::string& path_){
+    const std::string p = "/" + lowerAscii(path_);
+    if( p.find("/exefs_patches/") != std::string::npos or p.find("/nro_patches/") != std::string::npos ) return 2;
+    if( p.size() > 4 and p.compare(p.size() - 4, 4, ".ips") == 0 ) return 2;
+    if( p.find("/romfs/") != std::string::npos ) return 0;
+    if( p.find("/exefs/") != std::string::npos ) return 1;
+    return 4;
   }
 
-  const NVGcolor kGreenBg = nvgRGBA(52, 213, 131, 46);
-  const NVGcolor kGreen = nvgRGB(46, 170, 110);
-  const NVGcolor kAmberBg = nvgRGBA(230, 185, 92, 50);
-  const NVGcolor kAmber = nvgRGB(196, 140, 40);
-
-  float pillWidth(NVGcontext* vg, const std::string& text_, float size_ = 15.f){
-    nvgFontSize(vg, size_);
-    return nvgTextBounds(vg, 0, 0, text_.c_str(), nullptr, nullptr) + 22.f;
-  }
-
-  void pill(NVGcontext* vg, float x_, float cy_, const std::string& text_, NVGcolor bg_, NVGcolor fg_, float alpha_, float size_ = 15.f){
-    const float w = pillWidth(vg, text_, size_), h = size_ + 11.f;
-    nvgBeginPath(vg);
-    nvgRoundedRect(vg, x_, cy_ - h / 2, w, h, h / 2);
-    nvgFillColor(vg, nvgRGBAf(bg_.r, bg_.g, bg_.b, bg_.a * alpha_));
-    nvgFill(vg);
-    nvgFillColor(vg, nvgRGBAf(fg_.r, fg_.g, fg_.b, alpha_));
-    nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-    nvgBeginPath(vg);
-    nvgText(vg, x_ + w / 2, cy_ + 1, text_.c_str(), nullptr);
-  }
+  // Geometria de las tarjetas (pantalla de 1280 x 720, como la maqueta).
+  constexpr int kCols = 2;
+  constexpr float kGap = 14.f, kCardH = 118.f;
 
 }
 
@@ -66,23 +46,20 @@ ModsView::ModsView(GuiModManager* manager_, uint8_t* icon_, std::string title_)
   this->refreshStatus();
   this->rebuild();
 
-  this->registerAction("", brls::Key::DUP, [this]{
-    if( _zone_ == 0 and _selected_ == 0 ){ _zone_ = 1; return true; }
-    if( _zone_ == 0 ) this->move(-1);
-    return true;
-  }, true);
+  this->registerAction("", brls::Key::DUP, [this]{ this->move(-kCols); return true; }, true);
   this->registerAction("", brls::Key::DDOWN, [this]{
-    if( _zone_ == 1 ){ if( not _visible_.empty() ) _zone_ = 0; return true; }
-    this->move(1);
+    if( _selected_ + kCols >= int(_visible_.size()) and _selected_ / kCols < (int(_visible_.size()) - 1) / kCols ){
+      _selected_ = int(_visible_.size()) - 1;
+      return true;
+    }
+    this->move(kCols);
     return true;
   }, true);
-  this->registerAction("", brls::Key::L, [this]{ if( _zone_ == 0 ) this->move(-6); return true; }, true);
-  this->registerAction("", brls::Key::R, [this]{ if( _zone_ == 0 ) this->move(6); return true; }, true);
-  this->registerAction("", brls::Key::A, [this]{
-    if( _zone_ == 1 ) this->openSearch();
-    else this->toggleSelected();
-    return true;
-  }, true);
+  this->registerAction("", brls::Key::DLEFT, [this]{ this->move(-1); return true; }, true);
+  this->registerAction("", brls::Key::DRIGHT, [this]{ this->move(1); return true; }, true);
+  this->registerAction("", brls::Key::L, [this]{ this->move(-8); return true; }, true);
+  this->registerAction("", brls::Key::R, [this]{ this->move(8); return true; }, true);
+  this->registerAction("", brls::Key::A, [this]{ this->toggleSelected(); return true; }, true);
   this->registerAction("", brls::Key::X, [this]{ this->openMore(); return true; }, true);
   this->registerAction("", brls::Key::Y, [this]{ this->openSearch(); return true; }, true);
   this->registerAction("", brls::Key::MINUS, [this]{
@@ -95,26 +72,45 @@ ModsView::ModsView(GuiModManager* manager_, uint8_t* icon_, std::string title_)
 
 ModsView::~ModsView(){
   if( _image_ > 0 ) nvgDeleteImage(brls::Application::getNVGContext(), _image_);
+  this->freeThumbs();
 }
 
 /* Los archivos de cada mod: cuantos son y que mods comparten alguno. Dos mods
    chocan si tienen un archivo con la misma ruta: el que se activa despues pisa
    al otro, y apagar uno borra ese archivo del otro. */
+void ModsView::freeThumbs(){
+  NVGcontext* vg = brls::Application::getNVGContext();
+  for( auto& r : _rows_ ){ if( r.image > 0 ) nvgDeleteImage(vg, r.image); r.image = -1; }
+}
+
 void ModsView::scanMods(){
   auto& mm = _manager_->getGameBrowser().getModManager();
   auto& modList = mm.getModList();
+  this->freeThumbs();
   _rows_.clear();
+  /* Miniaturas que deja SimpleModDownloader al descargar un mod:
+     /config/SimpleModManager/miniaturas/<carpeta del juego>/<carpeta del mod>.jpg */
+  std::string gameDir = mm.getGameFolderPath();
+  while( not gameDir.empty() and gameDir.back() == '/' ) gameDir.pop_back();
+  const std::string thumbDir = "/config/SimpleModManager/miniaturas/" + GenericToolbox::getFileName(gameDir) + "/";
   std::map<std::string, std::vector<int>> owners;
   for( size_t i = 0; i < modList.size(); i++ ){
     Row r;
     r.name = modList[i].modName;
     const std::string modPath = GenericToolbox::joinPath(mm.getGameFolderPath(), r.name);
+    int kinds[5] = {0, 0, 0, 0, 0};
     for( auto& f : GenericToolbox::lsFilesRecursive(modPath) ){
       const std::string name = GenericToolbox::getFileName(f);
       if( name.empty() or name[0] == '.' ) continue;  // .DS_Store, ._* y similares
       r.nFiles++;
+      kinds[kindOfPath(f)]++;
       owners[f].push_back(int(i));
     }
+    int distinct = 0;
+    r.kind = 4;
+    for( int k = 0; k < 3; k++ ){ if( kinds[k] > 0 ){ distinct++; r.kind = k; } }
+    if( distinct > 1 ) r.kind = 3;
+    if( GenericToolbox::isFile(thumbDir + r.name + ".jpg") ) r.thumb = thumbDir + r.name + ".jpg";
     _rows_.emplace_back(std::move(r));
   }
   std::map<int, std::set<int>> pairs;
@@ -200,16 +196,10 @@ void ModsView::openMore(){
 }
 
 void ModsView::draw(NVGcontext* vg, int x, int y, unsigned width, unsigned height, brls::Style* style, brls::FrameContext* ctx){
-  const NVGcolor text = this->a(ctx->theme->textColor);
-  const NVGcolor faint = this->a(ctx->theme->descriptionColor);
-  const NVGcolor accent = this->a(ctx->theme->highlightColor1);
-  const NVGcolor veil = this->a(nvgRGBAf(ctx->theme->textColor.r, ctx->theme->textColor.g, ctx->theme->textColor.b, 0.07f));
-  const NVGcolor knobOff = this->a(nvgRGBAf(ctx->theme->textColor.r, ctx->theme->textColor.g, ctx->theme->textColor.b, 0.35f));
-  nvgFontFaceId(vg, ctx->fontStash->regular);
-
-  const float pad = 40.f;
-  const float left = x + pad, w = width - pad * 2;
-  float top = y + 22.f;
+  using namespace oqbui;
+  const float al = this->alpha;
+  caja(vg, x, y, width, height, 0.f, pal::fondo, al);
+  const float left = x + 32.f, right = x + width - 32.f;
 
   auto& mm = _manager_->getGameBrowser().getModManager();
 
@@ -228,176 +218,174 @@ void ModsView::draw(NVGcontext* vg, int x, int y, unsigned width, unsigned heigh
     if( not any and not _rows_.empty() ){ _manager_->startCheckAllModsThread(); }
   }
 
-  // Barra de abajo.
+  // Arriba: el juego en una pildora (icono, nombre, activos y perfil) y la hora.
   {
-    const float hintH = _zone_ == 1
-        ? oqbui::hintBar(vg, x, y + height, width, {{"B", "Volver"}, {"A", "Buscar"}}, text, this->alpha)
-        : oqbui::hintBar(vg, x, y + height, width, {{"B", "Volver"}, {"−", _filter_.empty() ? "" : "Quitar búsqueda"}, {"X", "Grupos y opciones"}, {"Y", "Buscar"}, {"A", "Activar / apagar"}}, text, this->alpha);
-    height -= unsigned(hintH);
-  }
-
-  // Arriba: icono y nombre del juego, y debajo activos, perfil y buscador.
-  {
-    if( _image_ == 0 and _icon_ != nullptr ) _image_ = nvgCreateImageMem(vg, 0, _icon_, 0x20000);
-    float tx = left;
-    if( _image_ > 0 ){
-      nvgBeginPath(vg);
-      nvgRoundedRect(vg, left, top, 44.f, 44.f, 9.f);
-      nvgFillPaint(vg, nvgImagePattern(vg, left, top, 44.f, 44.f, 0, _image_, this->alpha));
-      nvgFill(vg);
-      tx += 58.f;
-    }
-    nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
-    nvgFontSize(vg, 30.f);
-    nvgFillColor(vg, text);
-    nvgBeginPath(vg);
-    nvgText(vg, tx, top + 22.f, fit(vg, _title_, left + w - tx).c_str(), nullptr);
-    top += 60.f;
-
+    const float top = y + 24.f, h = 56.f, cy = top + h / 2;
+    const float wEstado = estado(vg, right, top, al);
     int active = 0;
     for( auto& r : _rows_ ){ if( this->fractionOf(r.name) == 1 ) active++; }
-    const std::string summary = std::to_string(active) + " de " + std::to_string(_rows_.size()) + (active == 1 ? " activo" : " activos");
-    pill(vg, left, top + 20.f, summary, active > 0 ? kGreenBg : nvgRGBAf(veil.r, veil.g, veil.b, veil.a), active > 0 ? kGreen : faint, this->alpha, 16.f);
-    float cx = left + pillWidth(vg, summary, 16.f) + 12.f;
-    const std::string profile = "Perfil: " + mm.fetchCurrentPreset().name;
-    pill(vg, cx, top + 20.f, profile, nvgRGBAf(accent.r, accent.g, accent.b, 0.18f), accent, this->alpha, 16.f);
-    cx += pillWidth(vg, profile, 16.f) + 18.f;
+    const std::string activos = std::to_string(active) + " de " + std::to_string(_rows_.size()) + (active == 1 ? " activo" : " activos");
+    const std::string perfil = "Perfil: " + mm.fetchCurrentPreset().name;
+    const float wAct = anchoTexto(vg, fuentes().mono, 13.f, activos) + 18.f;
+    const float wPerf = anchoTexto(vg, fuentes().mono, 13.f, perfil) + 18.f;
+    std::string busca;
+    if( not _filter_.empty() ) busca = "«" + _filter_ + "» · " + std::to_string(_visible_.size()) + " de " + std::to_string(_rows_.size());
+    const float wBusca = busca.empty() ? 0.f : anchoTexto(vg, fuentes().texto, 14.f, busca) + 18.f + 10.f;
 
-    const float bh = 40.f, bw = left + w - cx;
-    nvgBeginPath(vg);
-    nvgRoundedRect(vg, cx, top, bw, bh, 10.f);
-    nvgFillColor(vg, veil);
-    nvgFill(vg);
-    if( this->isFocused() and _zone_ == 1 ){
+    const float maxW = right - wEstado - 20.f - left;
+    const bool conIcono = _icon_ != nullptr;
+    const float fijo = (conIcono ? 8.f + 40.f + 12.f : 22.f) + 12.f + wAct + 10.f + wPerf + wBusca + 22.f;
+    nvgFontFaceId(vg, fuentes().negrita);
+    nvgFontSize(vg, 20.f);
+    const std::string name = ajustar(vg, _title_, std::max(80.f, maxW - fijo));
+    const float wName = anchoTexto(vg, fuentes().negrita, 20.f, name);
+    const float w = std::min(maxW, fijo + wName);
+    NVGcolor b = pal::borde;
+    caja(vg, left, top, w, h, h / 2, pal::panel, al, &b);
+    float cx = left + (conIcono ? 8.f : 22.f);
+    if( conIcono ){
+      if( _image_ == 0 ) _image_ = nvgCreateImageMem(vg, 0, _icon_, 0x20000);
       nvgBeginPath(vg);
-      nvgRoundedRect(vg, cx - 3, top - 3, bw + 6, bh + 6, 13.f);
-      nvgStrokeColor(vg, accent);
-      nvgStrokeWidth(vg, 3.f);
-      nvgStroke(vg);
+      nvgCircle(vg, cx + 20.f, cy, 20.f);
+      if( _image_ > 0 ) nvgFillPaint(vg, nvgImagePattern(vg, cx, cy - 20.f, 40.f, 40.f, 0, _image_, al));
+      else nvgFillColor(vg, conAlfa(colorDe(_title_), al));
+      nvgFill(vg);
+      cx += 40.f + 12.f;
     }
-    nvgFontSize(vg, 16.f);
-    nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
-    nvgFillColor(vg, _filter_.empty() ? faint : text);
-    nvgBeginPath(vg);
-    const std::string search = _filter_.empty() ? "Buscar mod" : "Buscando: " + _filter_ + "  ·  " + std::to_string(_visible_.size()) + " de " + std::to_string(_rows_.size());
-    nvgText(vg, cx + 14.f, top + bh / 2 + 1, fit(vg, search, bw - 28.f).c_str(), nullptr);
-    top += 56.f;
+    texto(vg, fuentes().negrita, 20.f, conAlfa(pal::texto, al), cx, cy + 1.f, name);
+    cx += wName + 12.f;
+    cx += etiqueta(vg, cx, cy, activos, active > 0 ? nvgRGBAf(pal::verde.r, pal::verde.g, pal::verde.b, 0.12f) : pal::chip, active > 0 ? pal::verde : pal::tenue, al) + 10.f;
+    cx += etiqueta(vg, cx, cy, perfil, nvgRGBAf(pal::acento.r, pal::acento.g, pal::acento.b, 0.14f), pal::acento, al) + 10.f;
+    if( not busca.empty() ) etiqueta(vg, cx, cy, busca, pal::chip, pal::cuerpo, al, false, 14.f);
   }
 
+  const float gridTop = y + 100.f, gridH = height - 100.f - 84.f;
+  const std::string contador = _visible_.empty() ? "" : std::to_string(_selected_ + 1) + " / " + std::to_string(_visible_.size());
+
   if( _rows_.empty() ){
-    nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
-    nvgFillColor(vg, text);
-    nvgFontSize(vg, 22.f);
-    nvgBeginPath(vg);
-    nvgText(vg, left, top + 10.f, "Este juego todavía no tiene mods", nullptr);
+    texto(vg, fuentes().negrita, 22.f, conAlfa(pal::texto, al), left, gridTop + 24.f, "Este juego todavía no tiene mods");
+    nvgFontFaceId(vg, fuentes().texto);
     nvgFontSize(vg, 17.f);
     nvgTextLineHeight(vg, 1.4f);
-    nvgFillColor(vg, faint);
+    nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
+    nvgFillColor(vg, conAlfa(pal::tenue, al));
     nvgBeginPath(vg);
     const std::string help = "Cada mod va en su carpeta: " + mm.getGameFolderPath() + "/<nombre del mod>/<archivos como van en la consola>. SimpleModDownloader los deja ahí al descargarlos.";
-    nvgTextBox(vg, left, top + 48.f, w, help.c_str(), nullptr);
+    nvgTextBox(vg, left, gridTop + 52.f, right - left, help.c_str(), nullptr);
+    pie(vg, left, right, y + height, "", {{"X", "Grupos y opciones"}, {"B", "Volver"}}, al);
     return;
   }
   if( _visible_.empty() ){
-    nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
-    nvgFillColor(vg, faint);
-    nvgFontSize(vg, 18.f);
-    nvgBeginPath(vg);
-    nvgText(vg, left, top + 10.f, ("Ningún mod coincide con «" + _filter_ + "». Pulsa Y para buscar otra cosa o − para ver todos.").c_str(), nullptr);
+    texto(vg, fuentes().texto, 18.f, conAlfa(pal::tenue, al), left, gridTop + 24.f, "Ningún mod coincide con «" + _filter_ + "».");
+    pie(vg, left, right, y + height, "", {{"Y", "Buscar otra cosa", true}, {"−", "Ver todos"}, {"B", "Volver"}}, al);
     return;
   }
 
-  const float rowH = 74.f;
-  const int fits = std::max(1, int((y + height - 10.f - top) / rowH));
-  if( _selected_ < _first_ ) _first_ = _selected_;
-  if( _selected_ >= _first_ + fits ) _first_ = _selected_ - fits + 1;
+  // Tarjetas.
+  const float cw = (right - left - kGap * (kCols - 1)) / kCols, step = kCardH + kGap;
+  const int rows = (int(_visible_.size()) + kCols - 1) / kCols;
+  const int fullRows = std::max(1, int((gridH + kGap) / step));
+  const int selRow = _selected_ / kCols;
+  if( selRow < _first_ ) _first_ = selRow;
+  if( selRow >= _first_ + fullRows ) _first_ = selRow - fullRows + 1;
 
-  for( int k = 0; k < fits and _first_ + k < int(_visible_.size()); k++ ){
-    const int vi = _first_ + k;
-    const Row& r = _rows_[_visible_[vi]];
-    const float ry = top + k * rowH;
-    const double frac = this->fractionOf(r.name);
-    const std::string status = this->statusOf(r.name);
+  static const char* kKindText[] = {"romfs", "exefs", ".ips", "mixto", "otro"};
+  const NVGcolor kindColor[] = {pal::acento, pal::oro, pal::verde, pal::cuerpo, pal::tenue};
 
-    // Separador y seleccion.
-    if( vi == _selected_ and _zone_ == 0 ){
-      nvgBeginPath(vg);
-      nvgRoundedRect(vg, left - 12.f, ry + 2, w + 24.f, rowH - 4, 12.f);
-      nvgFillColor(vg, nvgRGBAf(accent.r, accent.g, accent.b, 0.13f * this->alpha));
-      nvgFill(vg);
-    }
-    else{
-      nvgBeginPath(vg);
-      nvgRect(vg, left, ry + rowH - 1, w, 1);
-      nvgFillColor(vg, veil);
-      nvgFill(vg);
-    }
+  nvgSave(vg);
+  nvgScissor(vg, left - 4.f, gridTop - 4.f, right - left + 8.f, gridH + 4.f);
+  for( int r = _first_; r < rows and (r - _first_) * step < gridH; r++ ){
+    for( int c = 0; c < kCols; c++ ){
+      const int vi = r * kCols + c;
+      if( vi >= int(_visible_.size()) ) break;
+      const Row& row = _rows_[_visible_[vi]];
+      const float cx = left + c * (cw + kGap), cy = gridTop + (r - _first_) * step;
+      const bool sel = vi == _selected_;
+      const double frac = this->fractionOf(row.name);
+      const std::string status = this->statusOf(row.name);
+      const bool on = frac > 0;
 
-    // Interruptor.
-    const float sw = 52.f, sh = 28.f, sx = left, sy = ry + (rowH - sh) / 2;
-    const bool on = frac > 0;
-    nvgBeginPath(vg);
-    nvgRoundedRect(vg, sx, sy, sw, sh, sh / 2);
-    nvgFillColor(vg, on ? (frac == 1 ? this->a(kGreen) : this->a(kAmber)) : veil);
-    nvgFill(vg);
-    nvgBeginPath(vg);
-    nvgCircle(vg, on ? sx + sw - sh / 2 : sx + sh / 2, sy + sh / 2, sh / 2 - 4);
-    nvgFillColor(vg, on ? this->a(nvgRGB(255, 255, 255)) : knobOff);
-    nvgFill(vg);
+      NVGcolor borde = sel ? pal::acento : pal::bordeSuave;
+      caja(vg, cx, cy, cw, kCardH, 14.f, sel ? pal::elegido : pal::panel, al, &borde, sel ? 3.f : 1.f);
 
-    // Pildora de estado (el choque manda si el mod esta apagado y choca con uno activo).
-    std::string label;
-    NVGcolor bg = veil, fg = faint;
-    std::vector<std::string> activeClashes;
-    for( auto& c : r.clashes ){ if( this->fractionOf(c) > 0 ) activeClashes.push_back(c); }
-    if( status.empty() ){ label = "Sin revisar"; }
-    else if( status == "NO FILE" ){ label = "Sin archivos"; }
-    else if( frac == 1 ){ label = "Activo"; bg = kGreenBg; fg = kGreen; }
-    else if( frac > 0 ){
-      const auto open = status.find('(');
-      label = "A medias " + (open == std::string::npos ? std::string() : status.substr(open));
-      bg = kAmberBg; fg = kAmber;
-    }
-    else{ label = "Apagado"; }
-    if( not on and not activeClashes.empty() ){
-      label = "Choca con " + activeClashes[0] + (activeClashes.size() > 1 ? " y " + std::to_string(activeClashes.size() - 1) + " más" : "");
-      bg = kAmberBg; fg = kAmber;
-    }
-    nvgFontFaceId(vg, ctx->fontStash->regular);
-    const float maxPill = w * 0.42f;
-    nvgFontSize(vg, 15.f);
-    label = fit(vg, label, maxPill - 22.f);
-    const float pw = pillWidth(vg, label);
-    pill(vg, left + w - pw, ry + rowH / 2, label, bg, fg, this->alpha);
+      // El tipo de mod en un cuadro.
+      const float tile = 72.f, tx = cx + 16.f, ty = cy + (kCardH - tile) / 2;
+      const NVGcolor kc = kindColor[row.kind];
+      Row& rw = _rows_[_visible_[vi]];
+      if( not rw.thumb.empty() and rw.image < 0 ) rw.image = nvgCreateImage(vg, rw.thumb.c_str(), 0);
+      if( rw.image > 0 ){
+        // La miniatura del mod (de SimpleModDownloader), recortada al cuadro.
+        int iw = 1, ih = 1;
+        nvgImageSize(vg, rw.image, &iw, &ih);
+        const float sc = std::max(tile / float(iw), tile / float(ih));
+        const float dw = iw * sc, dh = ih * sc;
+        nvgBeginPath(vg);
+        nvgRoundedRect(vg, tx, ty, tile, tile, 12.f);
+        nvgFillPaint(vg, nvgImagePattern(vg, tx + (tile - dw) / 2, ty + (tile - dh) / 2, dw, dh, 0, rw.image, al));
+        nvgFill(vg);
+      }
+      else{
+        caja(vg, tx, ty, tile, tile, 12.f, nvgRGBAf(kc.r, kc.g, kc.b, 0.15f), al);
+        texto(vg, fuentes().mono, 15.f, conAlfa(kc, al), tx + tile / 2, ty + tile / 2 + 1.f, kKindText[row.kind], NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+      }
 
-    // Nombre y detalle.
-    const float tx = sx + sw + 18.f, tw = left + w - pw - 18.f - tx;
-    nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
-    nvgFontSize(vg, 20.f);
-    nvgFillColor(vg, text);
-    nvgBeginPath(vg);
-    nvgText(vg, tx, ry + 14.f, fit(vg, r.name, tw).c_str(), nullptr);
-    std::string sub = std::to_string(r.nFiles) + (r.nFiles == 1 ? " archivo" : " archivos");
-    if( not r.clashes.empty() and (on or activeClashes.empty()) ){
-      sub += "  ·  comparte archivos con " + r.clashes[0] + (r.clashes.size() > 1 ? " y " + std::to_string(r.clashes.size() - 1) + " más" : "");
+      // El estado a la derecha.
+      std::string label;
+      NVGcolor bg = mezcla(pal::fondo, pal::borde, 0.25f), fg = pal::tenue;
+      if( status.empty() ) label = "SIN REVISAR";
+      else if( status == "NO FILE" ) label = "SIN ARCHIVOS";
+      else if( frac == 1 ){ label = "ACTIVO"; bg = nvgRGBAf(pal::verde.r, pal::verde.g, pal::verde.b, 0.14f); fg = pal::verde; }
+      else if( frac > 0 ){
+        const auto open = status.find('(');
+        label = "A MEDIAS" + (open == std::string::npos ? std::string() : " " + status.substr(open));
+        bg = nvgRGBAf(pal::oro.r, pal::oro.g, pal::oro.b, 0.14f); fg = pal::oro;
+      }
+      else label = "APAGADO";
+      const float sw = anchoTexto(vg, fuentes().negrita, 14.f, label) + 24.f;
+      const float sx = cx + cw - 16.f - sw;
+      caja(vg, sx, cy + kCardH / 2 - 14.f, sw, 28.f, 14.f, bg, al);
+      texto(vg, fuentes().negrita, 14.f, conAlfa(fg, al), sx + sw / 2, cy + kCardH / 2 + 1.f, label, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+
+      // Nombre y etiquetas.
+      const float nx = tx + tile + 16.f, nw = sx - 16.f - nx;
+      nvgFontFaceId(vg, fuentes().negrita);
+      nvgFontSize(vg, 19.f);
+      texto(vg, fuentes().negrita, 19.f, conAlfa(pal::texto, al), nx, cy + kCardH / 2 - 15.f, ajustar(vg, row.name, nw));
+      float ex = nx;
+      if( rw.image > 0 ) ex += etiqueta(vg, ex, cy + kCardH / 2 + 18.f, kKindText[row.kind], nvgRGBAf(kc.r, kc.g, kc.b, 0.15f), kc, al, true, 12.f) + 6.f;
+      ex += etiqueta(vg, ex, cy + kCardH / 2 + 18.f, std::to_string(row.nFiles) + (row.nFiles == 1 ? " archivo" : " archivos"), pal::chip, pal::tenue, al, true, 12.f) + 6.f;
+      if( not row.clashes.empty() ){
+        // Si choca con uno activo, se nombra ese; si no, el primero.
+        std::string con = row.clashes[0];
+        int activos = 0;
+        for( auto& o : row.clashes ){ if( this->fractionOf(o) > 0 ){ if( activos == 0 ) con = o; activos++; } }
+        std::string t = "Choca con " + con + (row.clashes.size() > 1 ? " y " + std::to_string(row.clashes.size() - 1) + " más" : "");
+        nvgFontFaceId(vg, fuentes().texto);
+        nvgFontSize(vg, 13.f);
+        t = ajustar(vg, t, std::max(40.f, nx + nw - ex - 18.f));
+        const bool fuerte = not on and activos > 0;  // activarlo pisaria a otro
+        etiqueta(vg, ex, cy + kCardH / 2 + 18.f, t, nvgRGBAf(pal::oro.r, pal::oro.g, pal::oro.b, fuerte ? 0.22f : 0.12f), pal::oro, al, false, 13.f);
+      }
     }
-    nvgFontSize(vg, 15.f);
-    nvgFillColor(vg, faint);
-    nvgBeginPath(vg);
-    nvgText(vg, tx, ry + 42.f, fit(vg, sub, tw).c_str(), nullptr);
+  }
+  nvgRestore(vg);
+
+  if( rows > fullRows ){
+    const float tx = right + 14.f;
+    caja(vg, tx, gridTop, 4.f, gridH, 2.f, mezcla(pal::fondo, pal::borde, 0.25f), al);
+    const float barH = std::max(40.f, gridH * fullRows / float(rows));
+    const float barY = gridTop + (gridH - barH) * _first_ / float(std::max(1, rows - fullRows));
+    caja(vg, tx, barY, 4.f, barH, 2.f, pal::borde, al);
   }
 
-  if( int(_visible_.size()) > fits ){
-    const float trackH = fits * rowH - 8.f;
-    const float barH = std::max(30.f, trackH * fits / float(_visible_.size()));
-    const float barY = top + 4.f + (trackH - barH) * _first_ / float(_visible_.size() - fits);
-    nvgBeginPath(vg);
-    nvgRoundedRect(vg, left + w + 18.f, barY, 4.f, barH, 2.f);
-    nvgFillColor(vg, veil);
-    nvgFill(vg);
-  }
+  const bool selOn = this->fractionOf(_rows_[_visible_[_selected_]].name) > 0;
+  pie(vg, left, right, y + height, contador, {
+      {"A", selOn ? "Apagar" : "Activar", true},
+      {"Y", "Buscar"},
+      {"X", "Más"},
+      {"−", _filter_.empty() ? "" : "Quitar búsqueda"},
+      {"B", "Volver"}}, al);
 }
-
 
 FrameMods::FrameMods(GuiModManager* manager_, const std::string& title_, const uint8_t* icon_) : FrameSinBarras() {
   // El icono viene de la lista de juegos (su cache); si no, se busca como antes.

@@ -1,7 +1,7 @@
 //
 // Created by Adrien BLANCHET on 22/06/2020.
 // OQB: sin barra lateral. La pantalla principal es la de juegos a todo el
-// ancho; Ajustes y Acerca de se abren con R en su propio marco.
+// ancho; los ajustes se abren con R en un panel a la derecha (TabGames).
 //
 
 #ifndef SIMPLEMODMANAGER_FRAMEROOT_H
@@ -23,7 +23,6 @@ public:
   const GuiModManager &getGuiModManager() const { return _guiModManager_; }
   GuiModManager &getGuiModManager(){ return _guiModManager_; }
 
-  void openSettings();
 
 private:
   GuiModManager _guiModManager_{};

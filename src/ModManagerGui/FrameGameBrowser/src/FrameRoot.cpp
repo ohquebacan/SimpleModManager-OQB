@@ -5,8 +5,6 @@
 #include "FrameRoot.h"
 
 #include <TabGames.h>
-#include <TabAbout.h>
-#include <TabGeneralSettings.h>
 
 
 #include "Toolbox.h"
@@ -27,18 +25,6 @@ FrameRoot::FrameRoot() : FrameSinBarras() {
   this->setContentView( new TabGames(this) );
 
   LogInfo << "Root frame built." << std::endl;
-}
-
-// Ajustes y Acerca de, con sus pestanas, en un marco aparte.
-void FrameRoot::openSettings() {
-  auto* settings = new brls::TabFrame();
-  settings->setTitle("Ajustes");
-  settings->setIcon("romfs:/images/icon_corner.png");
-  settings->setFooterText( "SimpleModManager v" + Toolbox::getAppVersion() );
-  settings->addTab( "Ajustes", new TabGeneralSettings(this) );
-  settings->addTab( "Acerca de", new TabAbout() );
-  settings->registerAction("", brls::Key::PLUS, []{return true;}, true);
-  brls::Application::pushView(settings, brls::ViewAnimation::SLIDE_LEFT);
 }
 
 bool FrameRoot::onCancel() {

@@ -1,7 +1,7 @@
 //
-// OQB: pantalla de mods de un juego, como el mockup: sin barra lateral, cada mod
-// con su interruptor, su estado y el aviso si choca con otro. Los grupos de mods,
-// las opciones y los plugins siguen en su marco de siempre (X).
+// OQB: pantalla de mods de un juego, como la maqueta: tarjetas en dos columnas
+// con el tipo de mod, sus archivos, el aviso si choca con otro y su estado. Los
+// grupos de mods, las opciones y los plugins siguen en su marco de siempre (X).
 //
 
 #ifndef SIMPLEMODMANAGER_FRAMEMODS_H
@@ -22,6 +22,7 @@ class ModsView : public brls::View {
 public:
   ModsView(GuiModManager* manager_, uint8_t* icon_, std::string title_);
   ~ModsView() override;
+  void freeThumbs();
 
   void draw(NVGcontext* vg, int x, int y, unsigned width, unsigned height, brls::Style* style, brls::FrameContext* ctx) override;
   void layout(NVGcontext* vg, brls::Style* style, brls::FontStash* stash) override {}
@@ -38,6 +39,9 @@ private:
   struct Row{
     std::string name;
     int nFiles{0};
+    int kind{0};  // 0 romfs, 1 exefs, 2 parches .ips, 3 mixto, 4 otro
+    std::string thumb;  // miniatura que dejo SimpleModDownloader (vacia si no hay)
+    int image{-1};      // imagen de NanoVG (-1 sin cargar, 0 fallo)
     std::vector<std::string> clashes;
   };
   std::vector<Row> _rows_;
@@ -50,7 +54,6 @@ private:
   // activar/apagar termino (leerlo mientras esa tarea escribe botaba la app).
   std::map<std::string, std::pair<double, std::string>> _status_;
   void refreshStatus();
-  int _zone_{0};  // 0 lista, 1 buscador
 
   void scanMods();
   void rebuild();

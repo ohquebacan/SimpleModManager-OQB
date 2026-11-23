@@ -32,8 +32,8 @@ TabAbout::TabAbout() {
 
   this->addView(new brls::Header("Versión " + Toolbox::getAppVersion() + " (OQB) - Novedades"));
   addText(brls::LabelStyle::DESCRIPTION,
-          "- Juegos a pantalla completa, sin barra lateral (R abre Ajustes)\n"
-          "- Pantalla de mods con interruptores y estado\n"
+          "- Diseño nuevo: portadas en cuadrícula, mods en tarjetas y ajustes en un panel (R)\n"
+          "- Mods en .zip, .7z o .rar y parches .pchtxt listos al abrir el juego\n"
           "- Buscador, orden y mods activos en la lista de juegos\n"
           "- Nombres reales de los juegos nuevos\n"
           "- Aviso cuando dos mods tocan los mismos archivos\n"
